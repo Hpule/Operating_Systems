@@ -1,0 +1,128 @@
+CSC 453 - Hector Pule 
+### **Part 0: Repeating Forks**
+
+#### **Obervations:** 
+
+#### **normal print statement**
+
+```
+Yo!1Yo!Yo!2Yo!Yo!Yo!3Yo!Yo!Yo!Yo!4Yo!Yo!Yo!Yo!Yo!5Yo!Yo!Yo!Yo!Yo!5
+```
+
+#### **Running with GDB**
+
+```
+(gdb) run
+Starting program: /home/hpule/Operating_Systems/Program_0/./fork_loop 
+[Detaching after fork from child process 17180]
+[Detaching after fork from child process 17181]
+Yo!1[Detaching after fork from child process 17182]
+Yo!Yo!2[Detaching after fork from child process 17183]
+Yo!Yo!Yo!3[Detaching after fork from child process 17184]
+Yo!Yo!Yo!Yo!4[Detaching after fork from child process 17185]
+Yo!Yo!Yo!Yo!Yo!5Yo!Yo!Yo!Yo!Yo!5[Inferior 1 (process 17176) exited normally]
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-323.el7_9.x86_64
+(gdb) 
+```
+
+#### **"\n" in print statement**
+
+```
+Yo!
+1Yo!
+2Yo!
+3Yo!
+4Yo!
+```
+
+#### **Running with GDB**
+
+```
+(gdb) run
+Starting program: /home/hpule/Operating_Systems/Program_0/./fork_loop 
+[Detaching after fork from child process 17053]
+Yo!
+[Detaching after fork from child process 17054]
+1Yo!
+[Detaching after fork from child process 17055]
+2Yo!
+[Detaching after fork from child process 17056]
+3Yo!
+[Detaching after fork from child process 17057]
+4Yo!
+[Detaching after fork from child process 17058]
+55[Inferior 1 (process 17048) exited normally]
+Missing separate debuginfos, use: debuginfo-install glibc-2.17-323.el7_9.x86_64
+(gdb) 
+```
+
+After running the program, we see a series of "Yo!" and numbers. The while loop determines the number of "Yo!"s, and at the top of the loop, we fork(). In the while loop, wait(NULL) stops the parent process until any of its children completes, at which point it prints "YO". Each child also prints "YO" before leaving. After running the program, we get a series of "Yo!" and numbers. The number of "Yo!"s is determined by the while loop, and we fork() at the top of it. In the while loop, wait(NULL) suspends the parent process until any of its children complete, at which point it prints "YO". Each child prints "YO" before leaving.
+
+---
+
+### **Part 1: Who Running First?**  
+
+#### **Obervations:**
+
+#### **The results that I got... After a long time:**
+
+|  Output Format  | Results  |  |  |  |
+| ----------- | ----------- | ----------- | ----------- | ----------- |
+| printf                  | 415-childarent | 585-childparent | 257309-parent | 1-pparent |
+| printf + sleep          | 415-childarent | 585-childparent | 257309-parent | 1-pparent |
+| printf + fflush         | 999-child      | 999-parent      | 1-parentchild
+| printf + fflish + sleep | 999-child      | 999-parent      | 1 -parentchild
+| write                   | 1-cp 999-pc
+| write + sleep           | 1-cp 999-pc
+
+Looking at the results, I see that printf produces a much wider range of outputs. I believe it is due to a failure to clear the buffer. When we run fflush, it clears some of the blockage, leaving only the parent and child processes, but only one childparent process. When we only write, the results are similar. After running the same tests with sleep() and waiting some time, I noticed that the results did not change significantly. Write() produces the most accurate results because it does not use buffers, as printf does.
+
+---
+
+### **Part 2:64- and 32-bit processing Memory Images**
+
+#### **Obervations:**
+
+#### **The results that i got:**
+
+```
+hpule@unix5:/home/hpule/Operating_Systems/Program_0 $ ./whoruns
+first > results &
+[3] 19791
+hpule@unix5:/home/hpule/Operating_Systems/Program_0 $ pmap $!
+19791:   ./who_runs_first
+000000000400000      4K r-x-- who_runs_first
+000000000600000      4K r---- who_runs_first
+000000000601000      4K rw--- who_runs_first
+0007f3bf9755000   1808K r-x-- libc-2.17.so
+0007f3bf9919000   2044K ----- libc-2.17.so
+0007f3bf9b18000     16K r---- libc-2.17.so
+0007f3bf9b1c000      8K rw--- libc-2.17.so
+0007f3bf9b1e000     20K rw---   [ anon ]
+0007f3bf9b23000    136K r-x-- ld-2.17.so
+0007f3bf9d2b000     12K rw---   [ anon ]
+0007f3bf9d41000     12K rw---   [ anon ]
+0007f3bf9d44000      4K r---- ld-2.17.so
+0007f3bf9d45000      4K rw--- ld-2.17.so
+0007f3bf9d46000      4K rw---   [ anon ]
+0007ffd94784000    132K rw---   [ stack ]
+0007ffd947e3000      8K r-x--   [ anon ]
+ffffffffff600000      4K r-x--   [ anon ]
+total             4224K
+```
+
+At first glance, I didn't understand what this memory mapping output meant. After closely inspecting it, I discovered that each line is divided into several parts: a memory address range, the size of that memory region, permission flags (read-write-execute), and finally a "Mapping" section.
+
+After some research, I discovered that the "Mapping" field contains the user-facing name of the application or library occupying that memory region. The first three entries appear to be from our program itself: libc-2.17.so and ld-2.17.so (libraries), "anon" refers to anonymously mapped regions (Black Magic), and "stack" refers to the program's runtime stack. This information sheds light on how our program's memory is divided between heap and stack regions, allowing us to better understand memory management and optimization in future programming work.
+
+---
+
+### **Special Instructions:**
+
+N/A
+
+---
+
+### **Post Mark:**
+
+I want to graduate... please. 
