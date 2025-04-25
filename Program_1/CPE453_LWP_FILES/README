@@ -1,0 +1,40 @@
+# CSC 453 - Hector Pule 
+### **Short Answer Questions**
+
+#### **Question 1 - How is this LWP library different from a real thread management library?**
+
+**Light Weight Processes (LWP):** n contrast to genuine thread libraries, which need kernel support for preemptive scheduling, this LWP library operates entirely non-preemptively. It only supports basic thread operations, has no synchronization primitives or sophisticated features, and uses direct assembly manipulation for context switching rather than system calls. A true thread management library would provide APIs, a way to optimize/monitor our performance, and security/error handling. 
+
+---
+
+#### **Question 2 -  Name two ways in which this LWP library API or functionality could be improved.** 
+
+**Enhanced Synchronization:** Adding mutexes and condition variables would enable thread coordination and prevent race conditions in concurrent applications.
+
+**Imporoved Scalability:** Implementing preemption with priority levels would improve fairness or  responsiveness by preventing dominating CPU resources.
+
+**Error Handling:** We currently do not implement error handling, adding it will increase performance. 
+
+---
+
+### **Special Instructions:**
+
+N/A
+
+---
+
+### **Post Mark:**
+
+My process to build this, was to read the instructions a lot and draw what I think my code was doing. This is an example of some of the things I drew to understand the LWP proces. This is an example of what was going on in my brain to help me understand the lwp. 
+
+![Notes](/Operating_Systems/Program_1/CPE453_LWP_FILES/notes.png )
+
+
+For a long time, I was slowly losing my mind due to the -m32 flag. I ended up reading the lab manual and adding the flags, which made debugging go much more smoothly. Some of the areas I struggled with were new_lwp - just getting my head around the stack pointer structure, and understanding out why lwp_start failed after new_lwp passed.
+
+I also attempted to get snake to function but encountered problems due to a missing "lncurses" library. I attempted to use the "sudo" command but received a bad-bad message from IT:
+
+```
+hpule is not in the sudoers file. This  incident will be reported. 
+```
+After that, I attempted to download it to my local machine, upload the files to git, and manually install them in my files. That didn't work because I have an AMD CPU; I tried manually adding i386 but it didn't work, so I gave up. 

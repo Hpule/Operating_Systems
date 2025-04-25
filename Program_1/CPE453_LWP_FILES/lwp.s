@@ -1,11 +1,11 @@
 	.file	"lwp.c"
 	.comm	lwp_ptable,960,32
-	.globl	lwp_processes
+	.globl	current_lwp_processes
 	.bss
 	.align 4
-	.type	lwp_processes, @object
-	.size	lwp_processes, 4
-lwp_processes:
+	.type	current_lwp_processes, @object
+	.size	current_lwp_processes, 4
+current_lwp_processes:
 	.zero	4
 	.globl	curr_process
 	.data
@@ -27,11 +27,11 @@ curr_pid_process:
 	.size	global_sp, 8
 global_sp:
 	.zero	8
-	.globl	scheduler_function
+	.globl	scheduler
 	.align 8
-	.type	scheduler_function, @object
-	.size	scheduler_function, 8
-scheduler_function:
+	.type	scheduler, @object
+	.size	scheduler, 8
+scheduler:
 	.zero	8
 	.text
 	.globl	ribbed_robin
@@ -44,7 +44,7 @@ ribbed_robin:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	leal	-1(%rax), %edx
 	movl	curr_process(%rip), %eax
 	cmpl	%eax, %edx
@@ -72,14 +72,14 @@ based_scheduler:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	movq	scheduler_function(%rip), %rax
+	movq	scheduler(%rip), %rax
 	testq	%rax, %rax
 	jne	.L5
 	movl	$0, %eax
 	call	ribbed_robin
 	jmp	.L4
 .L5:
-	movq	scheduler_function(%rip), %rax
+	movq	scheduler(%rip), %rax
 	call	*%rax
 	movl	%eax, curr_process(%rip)
 .L4:
@@ -103,7 +103,7 @@ new_lwp:
 	movq	%rdi, -24(%rbp)
 	movq	%rsi, -32(%rbp)
 	movq	%rdx, -40(%rbp)
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	cmpl	$29, %eax
 	jle	.L8
 	movl	$-1, %eax
@@ -114,7 +114,7 @@ new_lwp:
 	movq	%rax, %rdi
 	call	malloc
 	movq	%rax, -8(%rbp)
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	cltq
 	salq	$5, %rax
 	leaq	lwp_ptable(%rax), %rdx
@@ -137,7 +137,7 @@ new_lwp:
 	movq	%rdx, (%rax)
 	subq	$8, -8(%rbp)
 	movq	-8(%rbp), %rax
-	movl	$4276993775, %ecx
+	movl	$3203383023, %ecx
 	movq	%rcx, (%rax)
 	movq	-8(%rbp), %rax
 	movq	%rax, -16(%rbp)
@@ -148,28 +148,28 @@ new_lwp:
 	movq	curr_pid_process(%rip), %rax
 	addq	$1, %rax
 	movq	%rax, curr_pid_process(%rip)
-	movl	lwp_processes(%rip), %edx
+	movl	current_lwp_processes(%rip), %edx
 	movq	curr_pid_process(%rip), %rax
 	movslq	%edx, %rdx
 	salq	$5, %rdx
 	addq	$lwp_ptable, %rdx
 	movq	%rax, (%rdx)
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	cltq
 	salq	$5, %rax
 	leaq	lwp_ptable+16(%rax), %rdx
 	movq	-8(%rbp), %rax
 	movq	%rax, 8(%rdx)
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	cltq
 	salq	$5, %rax
 	leaq	lwp_ptable+16(%rax), %rdx
 	movq	-40(%rbp), %rax
 	movq	%rax, (%rdx)
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	addl	$1, %eax
-	movl	%eax, lwp_processes(%rip)
-	movl	lwp_processes(%rip), %eax
+	movl	%eax, current_lwp_processes(%rip)
+	movl	current_lwp_processes(%rip), %eax
 	subl	$1, %eax
 	cltq
 	salq	$5, %rax
@@ -361,10 +361,10 @@ lwp_exit:
 	movq	8(%rax), %rax
 	movq	%rax, %rdi
 	call	free
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	subl	$1, %eax
-	movl	%eax, lwp_processes(%rip)
-	movl	lwp_processes(%rip), %eax
+	movl	%eax, current_lwp_processes(%rip)
+	movl	current_lwp_processes(%rip), %eax
 	testl	%eax, %eax
 	jle	.L15
 	movl	$0, -4(%rbp)
@@ -391,7 +391,7 @@ lwp_exit:
 	movq	%rdx, 24(%rax)
 	addl	$1, -4(%rbp)
 .L16:
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	cmpl	%eax, -4(%rbp)
 	jl	.L17
 	movl	curr_process(%rip), %eax
@@ -526,7 +526,7 @@ lwp_start:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	movl	lwp_processes(%rip), %eax
+	movl	current_lwp_processes(%rip), %eax
 	testl	%eax, %eax
 	jg	.L21
 	jmp	.L20
@@ -707,7 +707,7 @@ lwp_stop:
 #NO_APP
 	movl	curr_process(%rip), %edx
 #APP
-# 158 "lwp.c" 1
+# 157 "lwp.c" 1
 	movq  %rsp,%rax
 # 0 "" 2
 #NO_APP
@@ -717,55 +717,55 @@ lwp_stop:
 	movq	%rax, 8(%rdx)
 	movq	global_sp(%rip), %rax
 #APP
-# 159 "lwp.c" 1
+# 158 "lwp.c" 1
 	movq  %rax,%rsp
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rbp
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r15
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r14
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r13
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r12
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r11
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r10
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r9
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %r8
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rdi
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rsi
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rdx
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rcx
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rbx
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	popq  %rax
 # 0 "" 2
-# 161 "lwp.c" 1
+# 159 "lwp.c" 1
 	movq  %rbp,%rsp
 # 0 "" 2
 #NO_APP
@@ -787,7 +787,7 @@ lwp_set_scheduler:
 	.cfi_def_cfa_register 6
 	movq	%rdi, -8(%rbp)
 	movq	-8(%rbp), %rax
-	movq	%rax, scheduler_function(%rip)
+	movq	%rax, scheduler(%rip)
 	popq	%rbp
 	.cfi_def_cfa 7, 8
 	ret

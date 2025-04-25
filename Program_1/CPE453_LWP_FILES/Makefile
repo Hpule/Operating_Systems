@@ -8,17 +8,16 @@ examples: numbersmain-ex snakemain-ex hungrymain-ex
 tests: numbersmain snakemain hungrymain numbersmain
 
 snakemain: snakemain.c snakes.h $(LWP) $(SN-EX)
-	cc -Wall -Werror -g -o $@ $< $(LWP) $(SN-EX) -L/usr/lib64 -lncurses
-
-
+	cc -Wall -Werror -g -m32 -o $@ $< $(LWP) $(SN-EX) -lncurses
+		
 snakemain-ex: snakemain.c snakes.h $(LWP-EX) $(SN-EX)
-	cc -Wall -Werror -g -o $@ $< $(LWP-EX) $(SN-EX) -L/usr/lib64 -lncurses
+	cc -Wall -Werror -g -o $@ $< $(LWP-EX) $(SN-EX) -lncurses
 
 hungrymain: hungrymain.c snakes.h $(LWP) $(SN-EX)
-	cc -Wall -Werror -g -m32 -o $@ $< $(LWP) $(SN-EX) -L/usr/lib64 -lncurses
+	cc -Wall -Werror -g  -o $@ $< $(LWP) $(SN-EX) -lncurses
 
 hungrymain-ex: hungrymain.c snakes.h $(LWP-EX) $(SN-EX)
-	cc -Wall -Werror -g -o $@ $< $(LWP-EX) $(SN-EX) -L/usr/lib64 -lncurses
+	cc -Wall -Werror -g -o $@ $< $(LWP-EX) $(SN-EX) -lncurses
 
 numbersmain: numbersmain.c lwp.h $(LWP)
 	cc -Wall -Werror -g -m32 -o $@ $< $(LWP)

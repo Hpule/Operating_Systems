@@ -1,103 +1,102 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include "lwp.h"
-/*
-    SAVE_STATE()
-    RESTORE_STATE()
-    SetSP()
-    GetSP()
+
+
+/* MACROS:
+        SAVE_STATE()
+        RESTORE_STATE()
+        SetSP()
+        GetSP()
 */
 
 // Global Pointer that gets stack pointers
-lwp_context lwp_ptable[LWP_PROC_LIMIT]; 
-int lwp_processes = 0; 
-int curr_process = -1; 
-unsigned long curr_pid_process = 0; 
+lwp_context lwp_ptable[LWP_PROC_LIMIT];     // Process Table
+int current_lwp_processes = 0;              // Current Number of LWP's
+int curr_process = -1;                      // Current Process
+unsigned long curr_pid_process = 0;     
 ptr_int_t *global_sp = NULL; 
-schedfun scheduler_function = NULL; 
+schedfun scheduler = NULL; 
 
 /* lwp functions */
-int new_lwp(lwpfun function ,void *arg, size_t stacksize); 
-int  lwp_getpid();
-void lwp_yield();
-void lwp_exit();
-void lwp_start();
-void lwp_stop(); // 
-void lwp_set_scheduler(schedfun sched);
+extern int new_lwp(lwpfun function ,void *arg, size_t stacksize); 
+extern int lwp_getpid();
+extern void lwp_yield();
+extern void lwp_exit();
+extern void lwp_start();
+extern void lwp_stop(); // 
+extern void lwp_set_scheduler(schedfun sched);
 
 /* helper functions*/
-void ribbed_robin(){
-    if(curr_process ==  lwp_processes - 1){
+void ribbed_robin(){    // Round Robin 
+    if(curr_process ==  current_lwp_processes - 1){
         curr_process = 0; 
     } else{
         curr_process++; 
     } 
 }
 
-void based_scheduler(){
-    if(scheduler_function == NULL){ // Default Scheduler
+void based_scheduler(){ // Scheduler or No Scheduler? That is the question. 
+    if(scheduler == NULL){ // Default Scheduler
         ribbed_robin(); 
     }else{ // Other Schedulers
-        curr_process = (scheduler_function)(); // 
+        curr_process = (scheduler)(); // 
     }
 }
-
 
 // This works
 int new_lwp(lwpfun function, void *arg, size_t stacksize){
     
-    if(lwp_processes >= LWP_PROC_LIMIT){ // Checking the number of LWP's active 
-        // printf("Error: Reached LWP process limit\n");
+    if(current_lwp_processes >= LWP_PROC_LIMIT){ // Checking the number of LWP's active 
+        // printf("Error: Reached LWP process limit\n"); // -- Debug Statement
         return -1; 
     }
 
     ptr_int_t *stack_pointer = malloc(stacksize * 4); 
 
-    lwp_ptable[lwp_processes].stack = stack_pointer;
+    lwp_ptable[current_lwp_processes].stack = stack_pointer;
 
     stack_pointer += stacksize; 
     stack_pointer -= 1; 
 
+    // Arguments First 
     *stack_pointer = (ptr_int_t) arg; 
     stack_pointer -= 1; 
 
+    // 
     *stack_pointer = (ptr_int_t) lwp_exit; //Why?
     stack_pointer -= 1; 
 
+    // Function 
     *stack_pointer = (ptr_int_t) function;
     stack_pointer -= 1; 
 
-    *stack_pointer = (ptr_int_t) 0xFEEDBEEF;
+    // Default base pointer address
+    *stack_pointer = (ptr_int_t) 0xBEEFBEEF;
     
-    // address of the bogus base paonter 
-    // Restore stable add to EBP 
-
     ptr_int_t base_pointer = (ptr_int_t) stack_pointer;
     stack_pointer -= 7; 
     *stack_pointer = base_pointer; 
 
-    // Uncomment to make sure thatr lsit is correct
-    // Copy Stuff
+    // Copy Stuff 
     curr_pid_process++; 
-    lwp_ptable[lwp_processes].pid = curr_pid_process; 
-    lwp_ptable[lwp_processes].sp = stack_pointer; 
-    lwp_ptable[lwp_processes].stacksize = stacksize; 
-    lwp_processes++; 
+    lwp_ptable[current_lwp_processes].pid = curr_pid_process; 
+    lwp_ptable[current_lwp_processes].sp = stack_pointer; 
+    lwp_ptable[current_lwp_processes].stacksize = stacksize; 
+    current_lwp_processes++; 
 
-    return lwp_ptable[lwp_processes - 1].pid;
+    return lwp_ptable[current_lwp_processes - 1].pid;
 }
 
 int  lwp_getpid(){
     if (curr_process == -1) {
         return 0; // No LWP is currently running
     }
+    
     return lwp_ptable[curr_process].pid;
-    // return 0; 
 }
 
 void lwp_yield(){ // Soft-Bullies LWP's
-   
     SAVE_STATE(); 
     GetSP(lwp_ptable[curr_process].sp);
     
@@ -108,16 +107,16 @@ void lwp_yield(){ // Soft-Bullies LWP's
 }
 
 void lwp_exit(){
-    // printf("LWP end\n"); 
+    // printf("LWP end\n"); // -- Debug Statement
     free(lwp_ptable[curr_process].stack);
-    lwp_processes--; 
+    current_lwp_processes--; 
 
-    if(lwp_processes > 0 ){
+    if(current_lwp_processes > 0 ){
         int curr = 0; 
-        for(curr = curr_process; curr < lwp_processes; curr++){
+        for(curr = curr_process; curr < current_lwp_processes; curr++){
             lwp_ptable[curr] = lwp_ptable[curr + 1]; 
         }
-    } else{
+    } else{ // current_lwp_processes == 0
         SetSP(global_sp);  
         RESTORE_STATE();
         return; 
@@ -127,11 +126,9 @@ void lwp_exit(){
     RESTORE_STATE(); 
 }
 
-
-// When lwp_start() is called:
-void lwp_start(){
+void lwp_start(){// When lwp_start() is called:
     // Check if there are processes to run
-    if (lwp_processes <= 0) {
+    if (current_lwp_processes <= 0) {
         return;
     }
     
@@ -154,13 +151,11 @@ void lwp_start(){
 
 void lwp_stop(){
     SAVE_STATE(); 
-    
     GetSP(lwp_ptable[curr_process].sp);
     SetSP(global_sp); 
-    
     RESTORE_STATE(); 
 }
 
 void lwp_set_scheduler(schedfun sched){
-    scheduler_function = sched;
+    scheduler = sched;
 }
