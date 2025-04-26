@@ -40,7 +40,7 @@ void based_scheduler(){ // Scheduler or No Scheduler? That is the question.
     if(scheduler == NULL){ // Default Scheduler
         ribbed_robin(); 
     }else{ // Other Schedulers
-        curr_process = (scheduler)(); // 
+        curr_process = (scheduler)(); // This make a function
     }
 }
 
@@ -63,8 +63,8 @@ int new_lwp(lwpfun function, void *arg, size_t stacksize){
     *stack_pointer = (ptr_int_t) arg; 
     stack_pointer -= 1; 
 
-    // 
-    *stack_pointer = (ptr_int_t) lwp_exit; //Why?
+    //Why?
+    *stack_pointer = (ptr_int_t) lwp_exit; 
     stack_pointer -= 1; 
 
     // Function 
@@ -88,6 +88,7 @@ int new_lwp(lwpfun function, void *arg, size_t stacksize){
     return lwp_ptable[current_lwp_processes - 1].pid;
 }
 
+// This works
 int  lwp_getpid(){
     if (curr_process == -1) {
         return 0; // No LWP is currently running
@@ -96,6 +97,7 @@ int  lwp_getpid(){
     return lwp_ptable[curr_process].pid;
 }
 
+// This works
 void lwp_yield(){ // Soft-Bullies LWP's
     SAVE_STATE(); 
     GetSP(lwp_ptable[curr_process].sp);
@@ -126,6 +128,7 @@ void lwp_exit(){
     RESTORE_STATE(); 
 }
 
+// This works - check new_lwp if seg fault
 void lwp_start(){// When lwp_start() is called:
     // Check if there are processes to run
     if (current_lwp_processes <= 0) {
@@ -148,7 +151,7 @@ void lwp_start(){// When lwp_start() is called:
     RESTORE_STATE();
 }
 
-
+// This works
 void lwp_stop(){
     SAVE_STATE(); 
     GetSP(lwp_ptable[curr_process].sp);
@@ -156,6 +159,7 @@ void lwp_stop(){
     RESTORE_STATE(); 
 }
 
+// This works
 void lwp_set_scheduler(schedfun sched){
     scheduler = sched;
 }

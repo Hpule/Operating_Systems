@@ -25,14 +25,14 @@ N/A
 
 ### **Post Mark:**
 
-My process to build this, was to read the instructions a lot and draw what I think my code was doing. This is an example of some of the things I drew to understand the LWP proces. This is an example of what was going on in my brain to help me understand the lwp. 
+My process for building this was to read the instructions several times and draw what I thought my code was doing. This is an example of what I drew to better understand what I was doing for this assignment. After I started using GDB to step through my code and see where I was seg faulting and slowly fixing my code. (Might have to change directory to work.)
 
 ![Notes](/Operating_Systems/Program_1/CPE453_LWP_FILES/notes.png )
 
 
 For a long time, I was slowly losing my mind due to the -m32 flag. I ended up reading the lab manual and adding the flags, which made debugging go much more smoothly. Some of the areas I struggled with were new_lwp - just getting my head around the stack pointer structure, and understanding out why lwp_start failed after new_lwp passed.
 
-I also attempted to get snake to function but encountered problems due to a missing "lncurses" library. I attempted to use the "sudo" command but received a bad-bad message from IT:
+I also attempted to get snake to function but encountered problems due to a missing "lncurses" library. I attempted to use the "sudo" command but received a bad-bad message from IT. (No emails from IT yet!!!)
 
 ```
 hpule is not in the sudoers file. This  incident will be reported. 
