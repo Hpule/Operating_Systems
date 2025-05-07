@@ -9,12 +9,11 @@
 
 #### **Question 3 - What happens to response time with SRTN as job lengths increase? Can you use the simulator to demonstrate the trend?**
 
-3) is starvation because thje jobs get longer and longer, the newer jobs take longer and longer to run
 
 
 #### **Question 4 - What happens to response time with RR as quantum lengths increase? Can you write an equation that gives the worst-case response time, given N jobs?**
 
-4) N*Q where Q is quant?
+
 
 ### **Special Instructions:**
 
