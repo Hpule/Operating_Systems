@@ -1,19 +1,12 @@
 #!/usr/bin/env python3
-"""
-schedSim - Process Scheduler Simulator
-Supports FIFO, SRTN, and RR scheduling algorithms
-"""
-
 import sys
 from enum import Enum
 
-# Enum for scheduling algorithms
 class ScheduleType(Enum):
     FIFO = "FIFO"  # First In First Out
     SRTN = "SRTN"  # Shortest Remaining Time Next
     RR = "RR"      # Round Robin
 
-# Job class to store job information
 class Job:
     def __init__(self, run_time, arrival_time):
         self.id = None  # Will be assigned based on arrival order
@@ -27,7 +20,6 @@ class Job:
     def __str__(self):
         return f"Job {self.id}: Run={self.run_time}, Arrival={self.arrival_time}, Remaining={self.remaining_time}"
 
-# Main scheduler simulator class
 class SchedulerSimulator:
     def __init__(self, job_file, algorithm=ScheduleType.FIFO, quantum=1):
         self.job_file = job_file
@@ -35,8 +27,13 @@ class SchedulerSimulator:
         self.quantum = quantum
         self.jobs = []
 
+        self.current_time = 0
+        self.completed_jobs = 0
+        self.ready_queue = []
+        
+        self.debug = True  # Set to False to disable all debug messages
+
     def read_job_file(self):
-        """Read jobs from the specified file."""
         try:
             with open(self.job_file, 'r') as file:
                 for line in file:
@@ -52,20 +49,26 @@ class SchedulerSimulator:
             sys.exit(1)
 
     def assign_job_ids(self):
-        """Sort jobs by arrival time and assign IDs."""
-        # Sort jobs by arrival time
         self.jobs.sort(key=lambda job: job.arrival_time)
-        
         # Assign IDs based on sorted order
         for i, job in enumerate(self.jobs):
             job.id = i
 
     def simulate(self):
-        """Run the selected scheduling algorithm simulation."""
         if not self.jobs:
             print("No jobs to simulate.")
             return
-
+            
+        self.current_time = 0
+        self.completed_jobs = 0
+        self.ready_queue = []
+        
+        for job in self.jobs:
+            job.remaining_time = job.run_time
+            job.start_time = -1
+            job.finish_time = -1
+            job.is_started = False
+            
         if self.algorithm == ScheduleType.FIFO:
             self.simulate_fifo()
         elif self.algorithm == ScheduleType.SRTN:
@@ -73,39 +76,141 @@ class SchedulerSimulator:
         elif self.algorithm == ScheduleType.RR:
             self.simulate_rr()
         else:
-            # Default to FIFO
             self.simulate_fifo()
 
     def simulate_fifo(self):
-        """Simulate First In First Out scheduling."""
-        print("FIFO scheduling to be implemented")
-        # Placeholder for FIFO implementation
-        pass
+        print(f"Needs to be implementd")
 
     def simulate_srtn(self):
-        """Simulate Shortest Remaining Time Next scheduling."""
-        print("SRTN scheduling to be implemented")
-        # Placeholder for SRTN implementation
-        pass
+        if self.debug:
+            print("Running SRTN simulation")
+        
+        while self.completed_jobs < len(self.jobs):
+            shortest_job_index = -1
+            shortest_time = float('inf')
+            
+            # TODO: Loop through jobs and find the one with shortest remaining time
+            # that has arrived but not finished
+            for i, job
+            
+            # 2. If no jobs are ready, advance time
+            if shortest_job_index == -1:
+                if not self.advance_to_next_arrival():
+                    break  # No more jobs will arrive
+                continue
+            
+            # 3. Get the job with shortest remaining time
+            job = self.jobs[shortest_job_index]
+            
+            # 4. Set start time if this is the first time running this job
+            if job.start_time == -1:
+                job.start_time = self.current_time
+            
+            # 5. Find when the next job will arrive (for preemption)
+            next_arrival = float('inf')
+            # TODO: Find the time of the next job arrival
+            
+            # 6. Determine how long to run the current job
+            # Either until completion or until next job arrives
+            run_time = 0  # TODO: Calculate run time
+            
+            # 7. Run the job for the calculated time
+            self.current_time += run_time
+            job.remaining_time -= run_time
+            
+            # 8. Check if job is completed
+            if job.remaining_time == 0:
+                job.finish_time = self.current_time
+                self.completed_jobs += 1
 
     def simulate_rr(self):
-        """Simulate Round Robin scheduling."""
-        print("RR scheduling to be implemented")
-        # Placeholder for RR implementation
-        pass
+        while self.completed_jobs < len(self.jobs):
+            self.update_ready_queue()
+            
+            if not self.ready_queue:  # No jobs ready, advance time
+                old_time = self.current_time
+                if not self.advance_to_next_arrival():
+                    break  # No more jobs
+                continue
+            
+            job_index = self.ready_queue.pop(0)
+            job = self.jobs[job_index]
+            
+            if job.start_time == -1:
+                job.start_time = self.current_time
+
+            run_time = min(self.quantum, job.remaining_time)
+            old_time = self.current_time
+            self.current_time += run_time
+            job.remaining_time -= run_time
+            
+            arrival_times = []
+            for i, j in enumerate(self.jobs):
+                if (j.arrival_time > old_time and 
+                    j.arrival_time <= self.current_time and 
+                    j.finish_time == -1 and 
+                    i not in self.ready_queue and
+                    i != job_index):
+                    
+                    self.ready_queue.append(i)
+                    arrival_times.append((i, j.arrival_time))
+            
+            if job.remaining_time == 0:
+                job.finish_time = self.current_time
+                self.completed_jobs += 1
+            else:
+                self.ready_queue.append(job_index)
+
+    def find_next_arrival_time(self):
+        next_time = float('inf')
+        for job in self.jobs:
+            if job.finish_time == -1 and job.arrival_time > self.current_time:
+                next_time = min(next_time, job.arrival_time)
+        return next_time
+
+    def advance_to_next_arrival(self):
+        next_time = self.find_next_arrival_time()
+        if next_time != float('inf'):
+            self.current_time = next_time
+            return True
+        return False
+
+    def update_ready_queue(self):
+        new_arrivals = []
+        for i, job in enumerate(self.jobs):
+            if (job.arrival_time <= self.current_time and 
+                job.finish_time == -1 and 
+                i not in self.ready_queue):
+                self.ready_queue.append(i)
+                new_arrivals.append(i)
+        
+        if self.debug and new_arrivals:
+            print(f"New jobs added to ready queue: {new_arrivals}")
 
     def print_results(self):
-        """Calculate and print turnaround and wait times for all jobs."""
-        # For now, just print out job details for debugging
-        print("Job details:")
-        for job in sorted(self.jobs, key=lambda j: j.id):
-            print(f"Job {job.id}: Run Time={job.run_time}, Arrival Time={job.arrival_time}")
+        total_TAT = 0.0
+        total_TW = 0.0
         
-        print("\nScheduling results to be implemented")
+        print("\n----- Job Results -----")
+        # Sort jobs by ID to ensure they are printed in order
+        sorted_jobs = sorted(self.jobs, key=lambda job: job.id)
+        
+        for job in sorted_jobs:
+            tat = job.finish_time - job.arrival_time
+            wt = tat - job.run_time
+            
+            print(f"Job {job.id:3d} -- TAT: {tat:3.2f} WT: {wt:3.2f}")
+            
+            total_TAT += tat
+            total_TW += wt
+        
+        avg_turnaround_time = total_TAT / len(self.jobs)
+        avg_wait_time = total_TW / len(self.jobs)
+        
+        print(f"Average TAT {avg_turnaround_time:3.2f} WT {avg_wait_time:3.2f}")
 
 
 def parse_arguments():
-    """Parse command-line arguments in the format specified by the assignment."""
     if len(sys.argv) < 2:
         print("Usage: schedSim <job-file.txt> [-p <ALGORITHM>] [-q <QUANTUM>]")
         sys.exit(1)
@@ -114,7 +219,6 @@ def parse_arguments():
     algorithm = ScheduleType.FIFO  # Default algorithm
     quantum = 1  # Default quantum
     
-    # Process -p and -q options in any order
     i = 2
     while i < len(sys.argv):
         if sys.argv[i] == '-p' and i + 1 < len(sys.argv):
@@ -131,7 +235,6 @@ def parse_arguments():
                 if quantum_val > 0:
                     quantum = quantum_val
             except ValueError:
-                # If invalid quantum, use default
                 pass
             i += 2
         else:
@@ -142,32 +245,19 @@ def parse_arguments():
 
 
 def main():
-    """Main function to run the scheduler simulator."""
-    # Parse command-line arguments
     job_file, algorithm, quantum = parse_arguments()
     
-    # Create simulator instance
     simulator = SchedulerSimulator(job_file, algorithm, quantum)
-    
-    # Read jobs from file
     simulator.read_job_file()
-    
-    # Assign job IDs based on arrival time
     simulator.assign_job_ids()
     
-    # Print information about the simulation setup
     print(f"Job File: {job_file}")
     print(f"Algorithm: {algorithm.value}")
     if algorithm == ScheduleType.RR:
         print(f"Quantum: {quantum}")
-    print()
     
-    # For debugging: Skip simulation for now
-    # simulator.simulate()
-    
-    # Print job details without scheduling results
+    simulator.simulate()
     simulator.print_results()
-
 
 if __name__ == "__main__":
     main()
