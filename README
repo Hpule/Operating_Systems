@@ -1,27 +1,25 @@
-# CSC 453 - Hector Pule 
-#### **Question 1 - For what types of workloads does SRTN deliver the same turnaround times as FIFO?**
+# CSC 453 - Hector Pule, Emanuel Gonzalez
 
+#### **Question 1 - For what types of workloads does SRTN deliver the same turnaround times as FIFO?**  
+SRTN gives the same turnaround times as FIFO when all jobs arrive at the same time and have the same or increasing run times. No job gets preempted.  
+**Source:** `cpu-sched.pdf`, page 4
 
+#### **Question 2 - For what types of workloads and quantum lengths does SRTN deliver the same response times as RR?**  
+SRTN and RR give the same response times when all jobs arrive at once and have equal run times. There’s no preemption, and RR gives fair slices.  
+**Source:** `cpu-sched.pdf`, pages 2–3
 
-#### **Question 2 - For what types of workloads and quantum lengths does SRTN deliver the same response times as RR?**
+#### **Question 3 - What happens to response time with SRTN as job lengths increase? Can you use the simulator to demonstrate the trend?**  
+As job lengths increase, long jobs are delayed if new short ones keep arriving. This causes longer response times or even starvation. The simulator can show this happening.  
+**Source:** `cpu-sched.pdf`, pages 3–4
 
+#### **Question 4 - What happens to response time with RR as quantum lengths increase? Can you write an equation that gives the worst-case response time, given N jobs?**  
+As quantum increases, response time goes up. Worst-case response time is (N - 1) × Q, where N is number of jobs and Q is the quantum length.  
+**Source:** `Week3-Scheduling.pdf`, page 9
 
-
-#### **Question 3 - What happens to response time with SRTN as job lengths increase? Can you use the simulator to demonstrate the trend?**
-
-3) is starvation because thje jobs get longer and longer, the newer jobs take longer and longer to run
-
-
-#### **Question 4 - What happens to response time with RR as quantum lengths increase? Can you write an equation that gives the worst-case response time, given N jobs?**
-
-4) N*Q where Q is quant?
-
-### **Special Instructions:**
-
+### **Special Instructions:**  
 N/A
 
 ---
 
-### **Post Mark:**
-
-I want to graduate... please. 
+### **Post Mark:**  
+I want to graduate... please.
