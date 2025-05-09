@@ -65,24 +65,7 @@ class SchedulerSimulator:
         elif self.algorithm == ScheduleType.RR:
             self.rr()
         else:
-            self.simulate_fifo()
-    
-    def fifo(self):
-
-        for job in self.jobs:
-            if self.current_time < job.arrival_time:
-                self.current_time = job.arrival_time
-
-            job.start_time = self.current_time
-            job.finish_time = self.current_time + job.run_time
-            job.remaining_time = 0  # No time left after finishing
-
-            self.current_time = job.finish_time
-
-            self.completed_jobs += 1
-
-
-
+            self.fifo()
     
     def run(self, job_index, run_time):
         job = self.jobs[job_index]
@@ -99,36 +82,20 @@ class SchedulerSimulator:
             self.completed_jobs += 1
             return True  
         return False  
-    
-    def available_jobs(self):
-        available_jobs = []
-        for i, job in enumerate(self.jobs):
-            if (job.arrival_time <= self.current_time and 
-                job.finish_time == -1):
-                available_jobs.append((i, job))
-        return available_jobs
-    
-    def arriving_job(self):
-        next_arrival = float('inf')
-        for i, job in enumerate(self.jobs):
-            if (job.arrival_time > self.current_time and 
-                job.arrival_time < next_arrival and 
-                job.finish_time == -1):
-                next_arrival = job.arrival_time
-        return next_arrival
-    
-    def check_new_arrivals(self, old_time, current_job_index):
-        new_arrivals = []
-        for i, job in enumerate(self.jobs):
-            if (job.arrival_time > old_time and 
-                job.arrival_time <= self.current_time and 
-                job.finish_time == -1 and 
-                i not in self.ready_queue and
-                i != current_job_index):
-                
-                self.ready_queue.append(i)
-                new_arrivals.append((i, job.arrival_time))
-        return new_arrivals
+       
+    def fifo(self):
+
+        for job in self.jobs:
+            if self.current_time < job.arrival_time:
+                self.current_time = job.arrival_time
+
+            job.start_time = self.current_time
+            job.finish_time = self.current_time + job.run_time
+            job.remaining_time = 0  # No time left after finishing
+
+            self.current_time = job.finish_time
+
+            self.completed_jobs += 1
     
     def srtn(self):        
         while self.completed_jobs < len(self.jobs):
@@ -168,6 +135,36 @@ class SchedulerSimulator:
             if not job_completed:
                 self.ready_queue.append(job_index)
 
+    def available_jobs(self):
+        available_jobs = []
+        for i, job in enumerate(self.jobs):
+            if (job.arrival_time <= self.current_time and 
+                job.finish_time == -1):
+                available_jobs.append((i, job))
+        return available_jobs
+    
+    def arriving_job(self):
+        next_arrival = float('inf')
+        for i, job in enumerate(self.jobs):
+            if (job.arrival_time > self.current_time and 
+                job.arrival_time < next_arrival and 
+                job.finish_time == -1):
+                next_arrival = job.arrival_time
+        return next_arrival
+    
+    def check_new_arrivals(self, old_time, current_job_index):
+        new_arrivals = []
+        for i, job in enumerate(self.jobs):
+            if (job.arrival_time > old_time and 
+                job.arrival_time <= self.current_time and 
+                job.finish_time == -1 and 
+                i not in self.ready_queue and
+                i != current_job_index):
+                
+                self.ready_queue.append(i)
+                new_arrivals.append((i, job.arrival_time))
+        return new_arrivals
+
     def find_next_arrival_time(self):
         next_time = float('inf')
         for job in self.jobs:
@@ -202,12 +199,11 @@ class SchedulerSimulator:
             wt = tat - job.run_time               
             total_tat += tat
             total_wt += wt
-            print(f"Job {job.id:3d} -- Turnaround {tat:5.2f}  Wait {wt:5.2f}")
+            print(f"Job {job.id:3d} -- Turnaround {tat:3.2f}  Wait {wt:3.2f}")
 
         avg_tat = total_tat / len(sorted_jobs)
         avg_wt = total_wt / len(sorted_jobs)
-        print(f"Average Turnaround {avg_tat:5.2f}  Wait {avg_wt:5.2f}")
-
+        print(f"Average -- Turnaround {avg_tat:3.2f}  Wait {avg_wt:3.2f}")
 
 def parse_arguments():
     if len(sys.argv) < 2:
