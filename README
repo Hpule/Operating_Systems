@@ -18,7 +18,7 @@ As quantum increases, response time goes up. Worst-case response time is (N - 1)
 
 ### **Special Instructions:**  
 
-I implemented the print statement at the end such that it prints all of the tasks / processes in sequence, thus if they are not in order in the.txt...., the print statement will print them in the scheduled order. I tried to make it do that, but my brain hurt doing it so I didn't implement it :(. Something that really helped me was actually writing out the process on ink and paper, which then helped me handle a test scenario where the arrival is staggered like:
+I implemented the print statement at the end such that it prints all of the tasks / processes in sequence, thus if they are not in order in the.txt...., the print statement will print them in the scheduled order. I tried to make it do that, but my brain hurt doing it so I didn't implement it :(. Something that really helped me was actually writing out the process on ink and paper, which then helped me handle a test scenario for SRTN where the arrival is staggered like:
 | P_n |  AT |  BT | WT  | TAT |
 | --- | --- | --- | --- | --- |
 | P0  |  0  |  5  |  0  |  5  |
