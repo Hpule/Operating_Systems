@@ -1,26 +1,39 @@
-# CSC 453 - Hector Pule 
-#### **Question 1 - For what types of workloads does SRTN deliver the same turnaround times as FIFO?**
+# CSC 453 - Hector Pule, Emanuel Gonzalez
 
+#### **Question 1 - For what types of workloads does SRTN deliver the same turnaround times as FIFO?**  
+SRTN gives the same turnaround times as FIFO when all jobs arrive at the same time and have the same or increasing run times. No job gets preempted.  
+**Source:** `cpu-sched.pdf`, page 4
 
+#### **Question 2 - For what types of workloads and quantum lengths does SRTN deliver the same response times as RR?**  
+SRTN and RR give the same response times when all jobs arrive at once and have equal run times. There’s no preemption, and RR gives fair slices.  
+**Source:** `cpu-sched.pdf`, pages 2–3
 
-#### **Question 2 - For what types of workloads and quantum lengths does SRTN deliver the same response times as RR?**
+#### **Question 3 - What happens to response time with SRTN as job lengths increase? Can you use the simulator to demonstrate the trend?**  
+As job lengths increase, long jobs are delayed if new short ones keep arriving. This causes longer response times or even starvation. The simulator can show this happening.  
+**Source:** `cpu-sched.pdf`, pages 3–4
 
+#### **Question 4 - What happens to response time with RR as quantum lengths increase? Can you write an equation that gives the worst-case response time, given N jobs?**  
+As quantum increases, response time goes up. Worst-case response time is (N - 1) × Q, where N is number of jobs and Q is the quantum length.  
+**Source:** `Week3-Scheduling.pdf`, page 9
 
-
-#### **Question 3 - What happens to response time with SRTN as job lengths increase? Can you use the simulator to demonstrate the trend?**
-
-
-
-#### **Question 4 - What happens to response time with RR as quantum lengths increase? Can you write an equation that gives the worst-case response time, given N jobs?**
-
-
-
-### **Special Instructions:**
-
+### **Special Instructions:**  
 N/A
 
----
+### **Post Mark:**  
 
-### **Post Mark:**
+I implemented the print statement at the end such that it prints all of the tasks / processes in sequence, thus if they are not in order in the.txt...., the print statement will print them in the scheduled order. I tried to make it do that, but my brain hurt doing it so I didn't implement it :(. Something that really helped me was actually writing out the process on ink and paper, which then helped me handle a test scenario for SRTN where the arrival is staggered like:
+| P_n |  AT |  BT | WT  | TAT |
+| --- | --- | --- | --- | --- |
+| P0  |  0  |  5  |  0  |  5  |
+| P1  |  1  |  4  | 10  |  14 |
+| P2  |  2  |  3  |  6  |  9  |
+| P3  |  3  |  2  |  3  |  5  |
+| P4  |  4  |  1  |  1  |  2  |
+ 
+If the current process (P0) and the incoming process (P1) have the same BT, the current process will be placed at the back of the queue. This will get the results indicated above. 
 
-I want to graduate... please. 
+```
+[P0][P0][P0][P0][P0][P4][P3][P3][P2][P2][P2][P1][P1][P1][P1]
+```
+
+I want to graduate... please.
