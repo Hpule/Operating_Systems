@@ -1,153 +1,178 @@
 #!/usr/bin/env python3
+import os
 import sys
 import argparse
-from collections import deque
-from enum import Enum
 
-PAGE_NUM  = 0
-VAL_BIT   = 1
-MEM_FRAME = 1
-PAGETABLE_SIZE = 256
-FRAME_SIZE = 256 
+# Constants
+PAGE_SIZE = 256
+FRAME_SIZE = 256
+TLB_SIZE = 16
 
-tlb = []
-page_table = []
-disk = []
-output_array = []
-input_array = []
-frames = -1
-algorithm = "FIFO"
-
-stats = {
-    'tlb_hits': 0,
-    'tlb_miss': 0,
-    'page_faults': 0,
-    'translated_addresses': 0
-}
-
-def tlb_check(target):
-    for index, entry in enumerate(tlb):
-        if entry[0] == target:
-            return index
-    return -1
-
-
-def page_table_check(target):
-    global page_table
-    if page_table[target][1]:
-        return page_table[target][0]
-    return -1
-
-
-def virtualMemory(file):    
-    init()
-    file_info = readFile(file)
-    disk_bin = open('BACKING_STORE.bin', 'rb')
-
-    frame_num = -1
-
-    for address in file_info:
-        page_num = int(address/FRAME_SIZE)
-        tlb_hit = tlb_check(page_num)
-        if tlb_hit > 0:
-            print("TLB Hit")
-            stats['tlb_hits'] += 1
-            frame_num = tlb[tlb_hit][1]
-            disk[frame_num][3] = 0
-        else: 
-            print("TLB Miss") # Look in Page Table
-            stats['tlb_miss'] += 1
-            page_table_hit = page_table_check(page_num)
-            if page_table_hit >= 0:  # We do not care about TLB hits only misses
-                print("Page Table Hit")
-                frame_num = page_table[page_table_hit][1]
-                disk[frame_num][3] = 0
-            else: 
-                print("Page Table Miss") # Look in disk
-                stats['page_faults'] += 1
-
-                disk_bin.seek(FRAME_SIZE*page_num)
-                data = disk_bin.read(FRAME_SIZE)
-
-                print(f"data: {data}") # a whole lot of ascii! (Looks ugly)--> convert!!!!
+class VirtualMemorySimulator:
+    def __init__(self, num_frames=256, algorithm="FIFO"):
+        # Configuration
+        self.num_frames = num_frames
+        self.algorithm = algorithm
+        self.fifo_counter = 0
+        
+        # Data structures
+        self.tlb = []  # [page_num, frame_num]
+        self.page_table = []  # [frame_num, valid_bit]
+        self.physical_memory = []  # [frame_num, page_num, data, age]
+        
+        # Statistics
+        self.stats = {
+            'translated_addresses': 0,
+            'page_faults': 0,
+            'tlb_hits': 0,
+            'tlb_misses': 0
+        }
+        
+        self.init_structures()
+    
+    def init_structures(self):
+        self.page_table = [[0, 0] for _ in range(PAGE_SIZE)]  # [frame_num, valid_bit]
+        self.physical_memory = [[i, 0, None, 0] for i in range(self.num_frames)]  # [frame_num, page_num, data, age]
+    
+    def tlb_lookup(self, page_num):
+        for i, entry in enumerate(self.tlb):
+            if entry[0] == page_num:
+                return i
+        return -1
+    
+    def page_table_lookup(self, page_num):
+        if self.page_table[page_num][1] == 1:  # Valid bit is set
+            return self.page_table[page_num][0]  # Return frame number
+        return -1
+    
+    # def update_lru_ages(self):
+    #     # Increment age for all frames
+    #     for frame in self.physical_memory:
+    #         if frame[2] is not None:  # Only update if frame has data
+    #             frame[3] += 1
+    
+    def get_page_replacement_frame(self):
+        if self.algorithm == "FIFO":
+            # Simple FIFO: use the next frame in sequence
+            frame_num = self.fifo_counter
+            self.fifo_counter = (self.fifo_counter + 1) % self.num_frames
+            return frame_num
+        
+        # elif self.algorithm == "LRU":
+        #     # Find the least recently used frame
+        #     max_age = -1
+        #     lru_frame = 0
             
+        #     for i in range(self.num_frames):
+        #         if self.physical_memory[i][3] > max_age:
+        #             max_age = self.physical_memory[i][3]
+        #             lru_frame = i
+            
+        #     return lru_frame
+        
+        else:  # Default or OPT algorithm (not fully implemented)
+            # Default to FIFO
+            frame_num = self.fifo_counter
+            self.fifo_counter = (self.fifo_counter + 1) % self.num_frames
+            return frame_num
+    
+    def simulate(self, filename):
+        try:
+            backing_store = open('BACKING_STORE.bin', 'rb')
+        except FileNotFoundError:
+            print("Error: BACKING_STORE.bin not found")
+            sys.exit(1)
+        
+        try:
+            with open(filename, 'r') as file:
+                addresses = [int(line.strip()) for line in file if line.strip()]
+        except FileNotFoundError:
+            print(f"Error: {filename} not found")
+            sys.exit(1)
+        
+        for logical_address in addresses:
+            page_num = logical_address // PAGE_SIZE
+            offset = logical_address % PAGE_SIZE
+            tlb_index = self.tlb_lookup(page_num)
+            
+            if tlb_index >= 0: # TLB hit
+                frame_num = self.tlb[tlb_index][1]
+                self.stats['tlb_hits'] += 1
+                self.physical_memory[frame_num][3] = 0 # Reset age for LRU
+            
+            else: # TLB miss
+                self.stats['tlb_misses'] += 1
+                frame_num = self.page_table_lookup(page_num)
+                
+                if frame_num >= 0:# Page table hit
+                    self.physical_memory[frame_num][3] = 0  # Reset age for LRU
+                
+                else: # Page fault - page not in memory
 
-
-        stats['translated_addresses'] += 1
-        print(f"{address}, 0, {frame_num}")
-    return
-
-
-def parse():
-    parser = argparse.ArgumentParser(description='Virtual Memory Simulator (memSim)')
-    parser.add_argument('filename'  , type=str, help='File name' )
-    parser.add_argument('frames'    , type=int, help='Frame size'                ,default='1' )
-    parser.add_argument('algorithm' , type=str, help='Algorithm - FIFO, LRU, OPT', default='FIFO')
-    return parser.parse_args()
-
+                    self.stats['page_faults'] += 1
+                    frame_num = self.get_page_replacement_frame()
+                    
+                    # If the frame was in use, invalidate its page table entry
+                    old_page = self.physical_memory[frame_num][1]
+                    if self.physical_memory[frame_num][2] is not None:
+                        self.page_table[old_page][1] = 0  # Clear valid bit
+                    
+                    backing_store.seek(page_num * PAGE_SIZE)
+                    data = backing_store.read(PAGE_SIZE)
+                    
+                    self.physical_memory[frame_num] = [frame_num, page_num, data, 0]
+                    self.page_table[page_num] = [frame_num, 1]  # Set frame number and valid bit
+                
+                self.tlb.append([page_num, frame_num]) # Update TLB
+                if (len(self.tlb) > TLB_SIZE) or (len(self.tlb) > frame_num):
+                    self.tlb.pop(0)  # Remove oldest entry (FIFO for TLB)          
+            # self.update_lru_ages() # Update LRU ages
+            
+            value_byte = self.physical_memory[frame_num][2][offset]
+            if value_byte > 127:
+                value_byte = value_byte - 256
+            
+            hex_data = self.physical_memory[frame_num][2].hex().upper()
+            # print(f"{logical_address}, {value_byte}, {frame_num}, {hex_data}")
+            # Check Indivudal Results
+            print(f"{logical_address}, ") 
+            print(f"{value_byte}, ") 
+            print(f"{frame_num}, ") 
+            print(f"{hex_data}")            
+            self.stats['translated_addresses'] += 1
+        
+        backing_store.close()
+        self.print_stats()
+    
+    def print_stats(self):
+        print(f"Number of Translated Addresses = {self.stats['translated_addresses']}")
+        print(f"Page Faults = {self.stats['page_faults']}")
+        print(f"Page Fault Rate = {self.stats['page_faults'] / self.stats['translated_addresses']:.3f}")
+        print(f"TLB Hits = {self.stats['tlb_hits']}")
+        print(f"TLB Misses = {self.stats['tlb_misses']}")
+        print(f"TLB Hit Rate = {self.stats['tlb_hits'] / self.stats['translated_addresses']:.3f}")
 
 def main():
-    terminal_info = parse()
-    filename = terminal_info.filename 
-    frames = terminal_info.frames
-    algorithm = terminal_info.algorithm
-
-    # Check all Parsed agruments 
-    print(frames)
-    if (frames <= 1) or (frames > FRAME_SIZE): 
-        print("Frames must be greater than 0 and less than 256")
-        exit(1)
-    if algorithm != 'FIFO' and algorithm != 'LRU' and algorithm != 'OPT':
-        print("Algorithm options: FIFO, LRU, OPT.")
-        exit(1)
-
-    virtualMemory(filename)
-    print_stats()
-    return 
-
-
-def init():
-    global page_table
-    for page in range(PAGETABLE_SIZE):
-        page_table.append([0,0])    
-    for frames in range(FRAME_SIZE):
-        disk.append([0,0,0,0]) #frame num, page num, data, age(LRU)
-    for frames in range(FRAME_SIZE):
-        output_array.append(0)
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Virtual Memory Simulator (memSim)')
+    parser.add_argument('filename',     type=str)
+    parser.add_argument('frames',       type=int,   default=256)
+    parser.add_argument('algorithm',    type=str,   default='FIFO', )
     
-
-def readFile(filename):
-    memory_addresses = []
-    try:
-        with open(filename, 'r') as file:
-            for address in file:
-                address = address.strip()
-                if address:
-                    address = int(address)
-                    memory_addresses.append(address)
-    except FileNotFoundError:
-        print(f"Error: Input file '{filename}' not found")
+    args = parser.parse_args()
+    
+    # Validate inputs
+    if args.frames <= 0 or args.frames > 256:
+        print("Error: Number of frames must be between 1 and 256")
         sys.exit(1)
-    return memory_addresses
-
-
-def readBin():
-    try:
-        with open('BACKING_STORE.bin', 'rb') as file:  # Fixed syntax
-            return file
-    except FileNotFoundError:
-        print(f"Error: Backing store file 'BACKING_STORE.bin' not found")
+    
+    if args.algorithm not in ['FIFO', 'LRU', 'OPT']:
+        print("Error: Algorithm must be one of FIFO, LRU, OPT")
         sys.exit(1)
-
-
-def print_stats():
-    print(f"Number of Translated Addresses = {stats['translated_addresses']}")
-    print(f"Page Faults = {stats['page_faults']}")
-    print(f"Page Fault Rate = {stats['page_faults'] / stats['translated_addresses']:.3f}")
-    print(f"TLB Hits = {stats['tlb_hits']}")
-    print(f"TLB Misses = {stats['translated_addresses'] - stats['tlb_hits']}")
-    print(f"TLB Hit Rate = {stats['tlb_hits'] / stats['translated_addresses']:.3f}")
-
+    
+    # Create and run the simulator
+    vm_sim = VirtualMemorySimulator(args.frames, args.algorithm)
+    vm_sim.simulate(args.filename)
 
 if __name__ == "__main__":
     main()
