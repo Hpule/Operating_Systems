@@ -2,6 +2,7 @@
 import os
 import sys
 import argparse
+from collections import deque, OrderedDict
 
 # Constants
 PAGE_SIZE = 256
@@ -14,11 +15,12 @@ class VirtualMemorySimulator:
         self.num_frames = num_frames
         self.algorithm = algorithm
         self.fifo_counter = 0
+        self.lru = OrderedDict()
         
         # Data structures
         self.tlb = []  # [page_num, frame_num]
         self.page_table = []  # [frame_num, valid_bit]
-        self.physical_memory = []  # [frame_num, page_num, data, age]
+        self.physical_memory = []  # [frame_num, page_num, data]
         
         # Statistics
         self.stats = {
@@ -32,7 +34,8 @@ class VirtualMemorySimulator:
     
     def init_structures(self):
         self.page_table = [[0, 0] for _ in range(PAGE_SIZE)]  # [frame_num, valid_bit]
-        self.physical_memory = [[i, 0, None, 0] for i in range(self.num_frames)]  # [frame_num, page_num, data, age]
+        self.physical_memory = [[i, 0, None] for i in range(self.num_frames)]  # [frame_num, page_num, data, age]
+        self.lru.clear()
     
     def tlb_lookup(self, page_num):
         for i, entry in enumerate(self.tlb):
@@ -45,30 +48,39 @@ class VirtualMemorySimulator:
             return self.page_table[page_num][0]  # Return frame number
         return -1
     
-    # def update_lru_ages(self):
-    #     # Increment age for all frames
-    #     for frame in self.physical_memory:
-    #         if frame[2] is not None:  # Only update if frame has data
-    #             frame[3] += 1
-    
-    def get_page_replacement_frame(self):
+    def update_lru_stack(self, frame_num):
+        if frame_num in self.lru:
+            del self.lru[frame_num]
+        self.lru[frame_num] = None
+        # print(f"DEBUG: Updated LRU - Frame {frame_num} moved to most recent")
+
+    def print_tlb(self, prefix=""):
+        if not self.tlb:
+            print(f"DEBUG {prefix}: TLB is empty")
+        else:
+            print(f"DEBUG {prefix}: TLB contents ({len(self.tlb)}/{TLB_SIZE} entries):")
+            for i, entry in enumerate(self.tlb):
+                print(f"  TLB[{i}]: Page {entry[0]} Frame {entry[1]}")
+
+    def replacement_policy(self):
         if self.algorithm == "FIFO":
-            # Simple FIFO: use the next frame in sequence
             frame_num = self.fifo_counter
             self.fifo_counter = (self.fifo_counter + 1) % self.num_frames
             return frame_num
         
-        # elif self.algorithm == "LRU":
-        #     # Find the least recently used frame
-        #     max_age = -1
-        #     lru_frame = 0
-            
-        #     for i in range(self.num_frames):
-        #         if self.physical_memory[i][3] > max_age:
-        #             max_age = self.physical_memory[i][3]
-        #             lru_frame = i
-            
-        #     return lru_frame
+        elif self.algorithm == "LRU":  # Find Least Recently Used frame
+            if (len(self.lru) < self.num_frames):
+                for frame in range(self.num_frames):
+                    if frame not in self.lru:
+                        # print(f"DEBUG: LRU selected unused frame {frame}")
+                        return frame
+                    
+            victim, _ = self.lru.popitem(last=False)
+            return victim
+        
+        elif self.algorithm == "OPT":
+            opt_frame = 0                    
+            return 
         
         else:  # Default or OPT algorithm (not fully implemented)
             # Default to FIFO
@@ -91,6 +103,7 @@ class VirtualMemorySimulator:
             sys.exit(1)
         
         for logical_address in addresses:
+            # print(f"\n=== PROCESSING ADDRESS: {logical_address} ===")
             page_num = logical_address // PAGE_SIZE
             offset = logical_address % PAGE_SIZE
             tlb_index = self.tlb_lookup(page_num)
@@ -98,19 +111,25 @@ class VirtualMemorySimulator:
             if tlb_index >= 0: # TLB hit
                 frame_num = self.tlb[tlb_index][1]
                 self.stats['tlb_hits'] += 1
-                self.physical_memory[frame_num][3] = 0 # Reset age for LRU
+                self.update_lru_stack(frame_num)
+                # print(f"DEBUG -- TLB HIT: Frame {frame_num}")
+                # self.print_tlb("AFTER TLB HIT\n")
             
             else: # TLB miss
                 self.stats['tlb_misses'] += 1
                 frame_num = self.page_table_lookup(page_num)
+                # print(f"DEBUG -- TLB MISS: Frame {frame_num}")
+                # self.print_tlb("AFTER TLB MISS\n")
                 
                 if frame_num >= 0:# Page table hit
-                    self.physical_memory[frame_num][3] = 0  # Reset age for LRU
-                
-                else: # Page fault - page not in memory
+                    self.update_lru_stack(frame_num)
+                    # print(f"DEBUG -- PT HIT: Frame {frame_num}")
+                    # self.print_tlb("AFTER PT HIT\n")
 
+                else: # Page fault - page not in memory
+                    # print(f"DEBUG -- PT MISS: Frame: {frame_num}")
                     self.stats['page_faults'] += 1
-                    frame_num = self.get_page_replacement_frame()
+                    frame_num = self.replacement_policy()
                     
                     # If the frame was in use, invalidate its page table entry
                     old_page = self.physical_memory[frame_num][1]
@@ -122,12 +141,17 @@ class VirtualMemorySimulator:
                     
                     self.physical_memory[frame_num] = [frame_num, page_num, data, 0]
                     self.page_table[page_num] = [frame_num, 1]  # Set frame number and valid bit
-                
+                    # print(f"DEBUG -- UPDATE PT: Page {page_num} -> Frame {frame_num}, Valid = 1")
+                    self.update_lru_stack(frame_num)
+
+                # If we miss then add / update the TLB
                 self.tlb.append([page_num, frame_num]) # Update TLB
-                if (len(self.tlb) > TLB_SIZE) or (len(self.tlb) > frame_num):
-                    self.tlb.pop(0)  # Remove oldest entry (FIFO for TLB)          
-            # self.update_lru_ages() # Update LRU ages
-            
+                if (len(self.tlb) > TLB_SIZE) or (len(self.tlb) > self.num_frames):
+                    self.tlb.pop(0)  # Remove oldest entry (FIFO for TLB)    
+
+                # self.print_tlb("AFTER TLB UPDATE\n")
+                                
+            # Convert physical value to readable value
             value_byte = self.physical_memory[frame_num][2][offset]
             if value_byte > 127:
                 value_byte = value_byte - 256
@@ -158,10 +182,8 @@ def main():
     parser.add_argument('filename',     type=str)
     parser.add_argument('frames',       type=int,   default=256)
     parser.add_argument('algorithm',    type=str,   default='FIFO', )
-    
     args = parser.parse_args()
     
-    # Validate inputs
     if args.frames <= 0 or args.frames > 256:
         print("Error: Number of frames must be between 1 and 256")
         sys.exit(1)
@@ -170,7 +192,6 @@ def main():
         print("Error: Algorithm must be one of FIFO, LRU, OPT")
         sys.exit(1)
     
-    # Create and run the simulator
     vm_sim = VirtualMemorySimulator(args.frames, args.algorithm)
     vm_sim.simulate(args.filename)
 
