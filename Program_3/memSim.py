@@ -67,17 +67,17 @@ class VirtualMemorySimulator:
         for i in range(len(self.tlb) - 1, -1, -1):
             if self.tlb[i][0] == page_num:
                 removed = self.tlb.pop(i)
-                print(f"DEBUG -- Removed evicted page from TLB: {removed}")
+                # print(f"DEBUG -- Removed evicted page from TLB: {removed}")
                 return True
         return False
 
     def add_to_tlb(self, page_num, frame_num, reason=""):
-        print(f"DEBUG -- Adding to TLB {reason}: Page {page_num} -> Frame {frame_num}")
+        # print(f"DEBUG -- Adding to TLB {reason}: Page {page_num} -> Frame {frame_num}")
         self.tlb.append([page_num, frame_num])
         
         if len(self.tlb) > TLB_SIZE:
             removed = self.tlb.pop(0)
-            print(f"DEBUG -- Removed TLB entry (TLB full): {removed}")
+            # print(f"DEBUG -- Removed TLB entry (TLB full): {removed}")
 
     def replacement_policy(self):
         if self.algorithm == "FIFO":
@@ -108,17 +108,17 @@ class VirtualMemorySimulator:
             farthest_use = -1
             victim_frame = 0
             
-            print(f"DEBUG -- OPT: All {self.num_frames} frames full, analyzing future usage:")
+            # print(f"DEBUG -- OPT: All {self.num_frames} frames full, analyzing future usage:")
             
             for frame in range(self.num_frames):
                 page_in_frame = self.physical_memory[frame][1]
                 next_use = self.future_frames(page_in_frame, self.opt_add_index + 1)
                 
-                print(f"DEBUG -- OPT: Frame {frame} has page {page_in_frame}, next use: {next_use}")
+                # print(f"DEBUG -- OPT: Frame {frame} has page {page_in_frame}, next use: {next_use}")
                 
                 # If this page is never used again, it's optimal to replace
                 if next_use == float('inf'):
-                    print(f"DEBUG -- OPT: Selected frame {frame} (page {page_in_frame} never used again)")
+                    # print(f"DEBUG -- OPT: Selected frame {frame} (page {page_in_frame} never used again)")
                     return frame
                 
                 # Track the page that will be used farthest in the future
@@ -126,7 +126,7 @@ class VirtualMemorySimulator:
                     farthest_use = next_use
                     victim_frame = frame
             
-            print(f"DEBUG -- OPT: Selected frame {victim_frame} (farthest future use at index {farthest_use})")
+            # print(f"DEBUG -- OPT: Selected frame {victim_frame} (farthest future use at index {farthest_use})")
             return victim_frame
         
         else:  # Default or OPT algorithm (not fully implemented)
@@ -151,7 +151,7 @@ class VirtualMemorySimulator:
             sys.exit(1)
         
         for addr_idx, logical_address in enumerate(addresses):
-            print(f"\n=== ADDRESS {addr_idx + 1}: {logical_address} (Index {addr_idx}) ===")
+            # print(f"\n=== ADDRESS {addr_idx + 1}: {logical_address} (Index {addr_idx}) ===")
             self.opt_add_index = addr_idx
             page_num = logical_address // PAGE_SIZE
             offset = logical_address % PAGE_SIZE
@@ -161,40 +161,40 @@ class VirtualMemorySimulator:
                 frame_num = self.tlb[tlb_index][1]
                 self.stats['tlb_hits'] += 1
                 self.update_lru_stack(frame_num)
-                print(f"DEBUG -- TLB HIT: Frame {frame_num}")
-                self.print_tlb("AFTER TLB HIT\n")
+                # print(f"DEBUG -- TLB HIT: Frame {frame_num}")
+                # self.print_tlb("AFTER TLB HIT\n")
             
             else: # TLB miss
                 self.stats['tlb_misses'] += 1
                 frame_num = self.page_table_lookup(page_num)
-                print(f"DEBUG -- TLB MISS: Frame {frame_num}")
-                self.print_tlb("AFTER TLB MISS\n")
+                # print(f"DEBUG -- TLB MISS: Frame {frame_num}")
+                # self.print_tlb("AFTER TLB MISS\n")
                 
                 if frame_num >= 0:# Page table hit
-                    print(f"DEBUG -- PT HIT: Using frame {frame_num}")
+                    # print(f"DEBUG -- PT HIT: Using frame {frame_num}")
                     if self.algorithm == "LRU":
                         self.update_lru_stack(frame_num)
                     
                     # CRITICAL FIX: Add to TLB on page table hit too
-                    print(f"DEBUG -- Adding to TLB (PT hit): Page {page_num} -> Frame {frame_num}")
+                    # print(f"DEBUG -- Adding to TLB (PT hit): Page {page_num} -> Frame {frame_num}")
                     self.tlb.append([page_num, frame_num])
                     
                     if len(self.tlb) > TLB_SIZE:
                         removed = self.tlb.pop(0)
-                        print(f"DEBUG -- Removed TLB entry: {removed}")
+                        # print(f"DEBUG -- Removed TLB entry: {removed}")
 
                 else:  # Page fault
-                    print(f"DEBUG -- PAGE FAULT: Loading page {page_num}")
-                    self.stats['page_faults'] += 1
+                    # print(f"DEBUG -- PAGE FAULT: Loading page {page_num}")
+                    # self.stats['page_faults'] += 1
                     
                     # Get frame to use
                     frame_num = self.replacement_policy()
-                    print(f"DEBUG -- Using frame {frame_num}")
+                    # print(f"DEBUG -- Using frame {frame_num}")
                     
                     # If frame was in use, clean up
                     if self.physical_memory[frame_num][2] is not None:
                         old_page = self.physical_memory[frame_num][1]
-                        print(f"DEBUG -- Evicting page {old_page} from frame {frame_num}")
+                        # print(f"DEBUG -- Evicting page {old_page} from frame {frame_num}")
                         
                         # Clear page table entry
                         self.page_table[old_page][1] = 0
@@ -209,7 +209,7 @@ class VirtualMemorySimulator:
                     # Update physical memory and page table
                     self.physical_memory[frame_num] = [frame_num, page_num, data]
                     self.page_table[page_num] = [frame_num, 1]
-                    print(f"DEBUG -- Loaded page {page_num} into frame {frame_num}")
+                    # print(f"DEBUG -- Loaded page {page_num} into frame {frame_num}")
                     
                     if self.algorithm == "LRU":
                         self.update_lru_stack(frame_num)
@@ -217,7 +217,7 @@ class VirtualMemorySimulator:
                     # Add to TLB
                     self.add_to_tlb(page_num, frame_num, "(page fault)")
             
-            self.print_tlb("CURRENT TLB")
+            # self.print_tlb("CURRENT TLB")
                                 
             # Convert physical value to readable value
             value_byte = self.physical_memory[frame_num][2][offset]
@@ -225,11 +225,11 @@ class VirtualMemorySimulator:
                 value_byte = value_byte - 256
             
             hex_data = self.physical_memory[frame_num][2].hex().upper()
-            # print(f"{logical_address}, {value_byte}, {frame_num}, {hex_data}")
+            print(f"{logical_address}, {value_byte}, {frame_num}, {hex_data}")
             # Check Indivudal Results
             # print(f"{logical_address}, ") 
             # print(f"{value_byte}, ") 
-            print(f"{frame_num}, ") 
+            # print(f"{frame_num}, ") 
             # print(f"{hex_data}")            
             self.stats['translated_addresses'] += 1
         
