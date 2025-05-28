@@ -16,6 +16,8 @@ class VirtualMemorySimulator:
         self.algorithm = algorithm
         self.fifo_counter = 0
         self.lru = OrderedDict()
+        self.opt_future_frames = [] # addresses when I read the file
+        self.opt_add_index = 0
         
         # Data structures
         self.tlb = []  # [page_num, frame_num]
@@ -54,13 +56,28 @@ class VirtualMemorySimulator:
         self.lru[frame_num] = None
         # print(f"DEBUG: Updated LRU - Frame {frame_num} moved to most recent")
 
-    def print_tlb(self, prefix=""):
-        if not self.tlb:
-            print(f"DEBUG {prefix}: TLB is empty")
-        else:
-            print(f"DEBUG {prefix}: TLB contents ({len(self.tlb)}/{TLB_SIZE} entries):")
-            for i, entry in enumerate(self.tlb):
-                print(f"  TLB[{i}]: Page {entry[0]} Frame {entry[1]}")
+    def future_frames(self, page_num, start_index):
+        for future in range(start_index, len(self.opt_future_frames)):
+            future_page = self.opt_future_frames[future] // PAGE_SIZE
+            if future_page == page_num:
+                return future
+        return float('inf')  # Never used again
+    
+    def remove_from_tlb(self, page_num):
+        for i in range(len(self.tlb) - 1, -1, -1):
+            if self.tlb[i][0] == page_num:
+                removed = self.tlb.pop(i)
+                print(f"DEBUG -- Removed evicted page from TLB: {removed}")
+                return True
+        return False
+
+    def add_to_tlb(self, page_num, frame_num, reason=""):
+        print(f"DEBUG -- Adding to TLB {reason}: Page {page_num} -> Frame {frame_num}")
+        self.tlb.append([page_num, frame_num])
+        
+        if len(self.tlb) > TLB_SIZE:
+            removed = self.tlb.pop(0)
+            print(f"DEBUG -- Removed TLB entry (TLB full): {removed}")
 
     def replacement_policy(self):
         if self.algorithm == "FIFO":
@@ -72,15 +89,45 @@ class VirtualMemorySimulator:
             if (len(self.lru) < self.num_frames):
                 for frame in range(self.num_frames):
                     if frame not in self.lru:
-                        # print(f"DEBUG: LRU selected unused frame {frame}")
+                        # print(f"DEBUG -- LRU: Selected unused frame {frame}")
                         return frame
                     
-            victim, _ = self.lru.popitem(last=False)
-            return victim
+            victim_frame, _ = self.lru.popitem(last=False)
+            return victim_frame
         
         elif self.algorithm == "OPT":
-            opt_frame = 0                    
-            return 
+            # print(f"DEBUG -- OPT: Replacement needed at index {self.opt_add_index}")
+            
+            # First check if any frames are empty
+            for frame in range(self.num_frames):
+                if self.physical_memory[frame][2] is None:
+                    print(f"DEBUG -- OPT: Selected unused frame {frame}")
+                    return frame
+            
+            # All frames are full, find optimal victim
+            farthest_use = -1
+            victim_frame = 0
+            
+            print(f"DEBUG -- OPT: All {self.num_frames} frames full, analyzing future usage:")
+            
+            for frame in range(self.num_frames):
+                page_in_frame = self.physical_memory[frame][1]
+                next_use = self.future_frames(page_in_frame, self.opt_add_index + 1)
+                
+                print(f"DEBUG -- OPT: Frame {frame} has page {page_in_frame}, next use: {next_use}")
+                
+                # If this page is never used again, it's optimal to replace
+                if next_use == float('inf'):
+                    print(f"DEBUG -- OPT: Selected frame {frame} (page {page_in_frame} never used again)")
+                    return frame
+                
+                # Track the page that will be used farthest in the future
+                if next_use > farthest_use:
+                    farthest_use = next_use
+                    victim_frame = frame
+            
+            print(f"DEBUG -- OPT: Selected frame {victim_frame} (farthest future use at index {farthest_use})")
+            return victim_frame
         
         else:  # Default or OPT algorithm (not fully implemented)
             # Default to FIFO
@@ -98,12 +145,14 @@ class VirtualMemorySimulator:
         try:
             with open(filename, 'r') as file:
                 addresses = [int(line.strip()) for line in file if line.strip()]
+                self.opt_future_frames = addresses
         except FileNotFoundError:
             print(f"Error: {filename} not found")
             sys.exit(1)
         
-        for logical_address in addresses:
-            # print(f"\n=== PROCESSING ADDRESS: {logical_address} ===")
+        for addr_idx, logical_address in enumerate(addresses):
+            print(f"\n=== ADDRESS {addr_idx + 1}: {logical_address} (Index {addr_idx}) ===")
+            self.opt_add_index = addr_idx
             page_num = logical_address // PAGE_SIZE
             offset = logical_address % PAGE_SIZE
             tlb_index = self.tlb_lookup(page_num)
@@ -112,44 +161,63 @@ class VirtualMemorySimulator:
                 frame_num = self.tlb[tlb_index][1]
                 self.stats['tlb_hits'] += 1
                 self.update_lru_stack(frame_num)
-                # print(f"DEBUG -- TLB HIT: Frame {frame_num}")
-                # self.print_tlb("AFTER TLB HIT\n")
+                print(f"DEBUG -- TLB HIT: Frame {frame_num}")
+                self.print_tlb("AFTER TLB HIT\n")
             
             else: # TLB miss
                 self.stats['tlb_misses'] += 1
                 frame_num = self.page_table_lookup(page_num)
-                # print(f"DEBUG -- TLB MISS: Frame {frame_num}")
-                # self.print_tlb("AFTER TLB MISS\n")
+                print(f"DEBUG -- TLB MISS: Frame {frame_num}")
+                self.print_tlb("AFTER TLB MISS\n")
                 
                 if frame_num >= 0:# Page table hit
-                    self.update_lru_stack(frame_num)
-                    # print(f"DEBUG -- PT HIT: Frame {frame_num}")
-                    # self.print_tlb("AFTER PT HIT\n")
+                    print(f"DEBUG -- PT HIT: Using frame {frame_num}")
+                    if self.algorithm == "LRU":
+                        self.update_lru_stack(frame_num)
+                    
+                    # CRITICAL FIX: Add to TLB on page table hit too
+                    print(f"DEBUG -- Adding to TLB (PT hit): Page {page_num} -> Frame {frame_num}")
+                    self.tlb.append([page_num, frame_num])
+                    
+                    if len(self.tlb) > TLB_SIZE:
+                        removed = self.tlb.pop(0)
+                        print(f"DEBUG -- Removed TLB entry: {removed}")
 
-                else: # Page fault - page not in memory
-                    # print(f"DEBUG -- PT MISS: Frame: {frame_num}")
+                else:  # Page fault
+                    print(f"DEBUG -- PAGE FAULT: Loading page {page_num}")
                     self.stats['page_faults'] += 1
+                    
+                    # Get frame to use
                     frame_num = self.replacement_policy()
+                    print(f"DEBUG -- Using frame {frame_num}")
                     
-                    # If the frame was in use, invalidate its page table entry
-                    old_page = self.physical_memory[frame_num][1]
+                    # If frame was in use, clean up
                     if self.physical_memory[frame_num][2] is not None:
-                        self.page_table[old_page][1] = 0  # Clear valid bit
+                        old_page = self.physical_memory[frame_num][1]
+                        print(f"DEBUG -- Evicting page {old_page} from frame {frame_num}")
+                        
+                        # Clear page table entry
+                        self.page_table[old_page][1] = 0
+                        
+                        # CRITICAL: Remove evicted page from TLB
+                        self.remove_from_tlb(old_page)
                     
+                    # Load new page
                     backing_store.seek(page_num * PAGE_SIZE)
                     data = backing_store.read(PAGE_SIZE)
                     
-                    self.physical_memory[frame_num] = [frame_num, page_num, data, 0]
-                    self.page_table[page_num] = [frame_num, 1]  # Set frame number and valid bit
-                    # print(f"DEBUG -- UPDATE PT: Page {page_num} -> Frame {frame_num}, Valid = 1")
-                    self.update_lru_stack(frame_num)
-
-                # If we miss then add / update the TLB
-                self.tlb.append([page_num, frame_num]) # Update TLB
-                if (len(self.tlb) > TLB_SIZE) or (len(self.tlb) > self.num_frames):
-                    self.tlb.pop(0)  # Remove oldest entry (FIFO for TLB)    
-
-                # self.print_tlb("AFTER TLB UPDATE\n")
+                    # Update physical memory and page table
+                    self.physical_memory[frame_num] = [frame_num, page_num, data]
+                    self.page_table[page_num] = [frame_num, 1]
+                    print(f"DEBUG -- Loaded page {page_num} into frame {frame_num}")
+                    
+                    if self.algorithm == "LRU":
+                        self.update_lru_stack(frame_num)
+                    
+                    # Add to TLB
+                    self.add_to_tlb(page_num, frame_num, "(page fault)")
+            
+            self.print_tlb("CURRENT TLB")
                                 
             # Convert physical value to readable value
             value_byte = self.physical_memory[frame_num][2][offset]
@@ -159,15 +227,15 @@ class VirtualMemorySimulator:
             hex_data = self.physical_memory[frame_num][2].hex().upper()
             # print(f"{logical_address}, {value_byte}, {frame_num}, {hex_data}")
             # Check Indivudal Results
-            print(f"{logical_address}, ") 
-            print(f"{value_byte}, ") 
+            # print(f"{logical_address}, ") 
+            # print(f"{value_byte}, ") 
             print(f"{frame_num}, ") 
-            print(f"{hex_data}")            
+            # print(f"{hex_data}")            
             self.stats['translated_addresses'] += 1
         
         backing_store.close()
         self.print_stats()
-    
+
     def print_stats(self):
         print(f"Number of Translated Addresses = {self.stats['translated_addresses']}")
         print(f"Page Faults = {self.stats['page_faults']}")
@@ -175,6 +243,14 @@ class VirtualMemorySimulator:
         print(f"TLB Hits = {self.stats['tlb_hits']}")
         print(f"TLB Misses = {self.stats['tlb_misses']}")
         print(f"TLB Hit Rate = {self.stats['tlb_hits'] / self.stats['translated_addresses']:.3f}")
+
+    def print_tlb(self, prefix=""):
+        if not self.tlb:
+            print(f"DEBUG {prefix}: TLB is empty")
+        else:
+            print(f"DEBUG {prefix}: TLB contents ({len(self.tlb)}/{TLB_SIZE} entries):")
+            for i, entry in enumerate(self.tlb):
+                print(f"  TLB[{i}]: Page {entry[0]} Frame {entry[1]}")            
 
 def main():
     # Parse command line arguments
