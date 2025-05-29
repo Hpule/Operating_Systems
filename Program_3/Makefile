@@ -1,11 +1,9 @@
 # Makefile for memSim.py
 
-# Default target
 all: memSim
 
-# Make memSim.py executable and fix line endings
 memSim: memSim.py
-	tr -d '\r' < memSim.py > memSim.tmp && mv memSim.tmp memSim.py  # Fix line endings
+	tr -d '\r' < memSim.py > memSim.tmp && mv memSim.tmp memSim.py 
 	chmod +x memSim.py
 	ln -sf memSim.py memSim
 
@@ -13,7 +11,6 @@ memSim: memSim.py
 clean:
 	rm -f memSim
 
-# Install - This is optional, can place the script in a directory on your PATH
 install: memSim
 	@echo "You can manually copy 'memSim' to a directory in your PATH if desired"
 
@@ -28,7 +25,6 @@ help:
 	@echo "  make help      - Show this help message"
 	@echo ""
 
-# Test target - Updated to match your actual program arguments
 test: memSim
 	@echo "Running basic tests..."
 	./memSim addresses.txt 10 FIFO

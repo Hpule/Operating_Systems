@@ -1,8 +1,13 @@
 # CSC 453 - Hector Pule
 
-### **Special Instructions:**  
-Did not add exectuable to file 
+## Special Instructions
+- I have a global called `TLB_SIZE` at the top, change it accordingly because I forgot about it and I was worried and confused why FIFO example w/ soft misses and tlb size 5, wasn't working - I set it to 16 and forgot. I'll probably have it set to 16, but change it for the sake of my grade.... (if you need to)
+- Did not add executable to file \
+- I have "\n" at the end of print_stats... might be a problem diff'ing files 
 
-### **Post Mark:**  
+## Post Mortem
+This assignment was equally fun and initially strange to understand at first. I had the most difficult time understanding the cache structure and really informing myself how the disk "Physical Memory" works, which helped me organize my data structures. 
+
+To help me debug and "see" what was happening in my queue, I made a `print_tlb()` function to streamline my process. LRU and OPT were kinda weird because I need to make separate, yet joined structures in simulate and would handle them individually. 
 
 I want to graduate... please.
