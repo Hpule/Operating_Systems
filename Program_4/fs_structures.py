@@ -1,6 +1,7 @@
 import struct
 from dataclasses import dataclass
 from typing import Optional
+from constants import *
 
 @dataclass
 class BlockAttributes:

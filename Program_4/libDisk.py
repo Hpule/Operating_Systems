@@ -1,157 +1,161 @@
 #!/usr/bin/env python3
+"""
+libDisk.py - Low-level disk emulation library for TinyFS
+
+This module provides a block-based disk interface that emulates
+a physical disk using a regular file. All disk operations work
+with fixed-size blocks.
+"""
 
 import os
 import math
-from constants import BLOCK_SIZE
+from typing import Optional
+from constants import BLOCK_SIZE, END_OF_DISK
+
+class DiskError(Exception):
+    """Custom exception for disk operations"""
+    pass
 
 class libDisk:
-    
-    def __init__(self, filename=str, bytes_size= 0):
-        self.filename = filename
+    def __init__(self):
+        self.filename: Optional[str] = None
         self.file_handle = None
-        self.disk_size = 0
-        
-        if bytes_size < 0:
-            raise ValueError("Size cannot be negative")
-        
-        if bytes_size == 0:
-            self.openDisk()
-        else:
-            self._create_new_disk(bytes_size)
+        self.disk_size: int = 0
+        self.is_open: bool = False
     
     # ------ Main functions ------
     # Mandatory Functions - openDisk, readBlock, writeBlock, closeDisk
-
-    def openDisk(self):
-        if not os.path.exists(self.filename):
-            raise FileNotFoundError(f"Disk file {self.filename} does not exist")
-        
-        try:
-            self.file_handle = open(self.filename, 'rb+')
-            self.file_handle.seek(0, os.SEEK_END)
-            self.disk_size = self.file_handle.tell()
-            self.file_handle.seek(0)
-        except IOError as e:
-            raise IOError(f"Failed to open disk file {self.filename}: {e}")
     
-    def read_block(self, block_num):
-        if not self.file_handle:
-            raise IOError("Disk is not open")
+    def openDisk(self, filename: str, nBytes: int) -> int:
+        try:
+            if nBytes < 0:
+                return -1
+            
+            if 0 < nBytes < BLOCK_SIZE:
+                return -1  # Disk must be at least one block
+            
+            self.filename = filename
+            
+            if nBytes == 0:
+                if not os.path.exists(filename):
+                    return -1
+                
+                self.file_handle = open(filename, 'rb+')
+                self.file_handle.seek(0, os.SEEK_END)
+                self.disk_size = self.file_handle.tell()
+                self.file_handle.seek(0)
+                
+            else:
+                self.disk_size = math.ceil(nBytes / BLOCK_SIZE) * BLOCK_SIZE
+                self.file_handle = open(filename, 'wb+')
+                
+                self.file_handle.seek(self.disk_size - 1)
+                self.file_handle.write(b'\x00')
+                self.file_handle.seek(0)
+                self.file_handle.flush()
+            
+            self.is_open = True
+            return 0
+            
+        except Exception as e:
+            print(f"openDisk error: {e}")
+            if self.file_handle:
+                self.file_handle.close()
+                self.file_handle = None
+            return -1
+    
+    def readBlock(self, bNum: int, block: bytearray) -> int:
+        if not self.is_open or not self.file_handle:
+            return -1
         
-        if block_num < 0:
-            raise ValueError("Block number cannot be negative")
+        if bNum < 0:
+            return -1
         
-        byte_offset = block_num * BLOCK_SIZE
-        
+        byte_offset = bNum * BLOCK_SIZE
         if byte_offset + BLOCK_SIZE > self.disk_size:
-            raise ValueError(f"Block {block_num} is beyond disk size")
+            return END_OF_DISK
         
         try:
             self.file_handle.seek(byte_offset)
             data = self.file_handle.read(BLOCK_SIZE)
             
-            if len(data) < BLOCK_SIZE:
-                data += b'\x00' * (BLOCK_SIZE - len(data))
+            if len(data) != BLOCK_SIZE:
+                return -1
             
-            return data
-        except IOError as e:
-            raise IOError(f"Failed to read block {block_num}: {e}")
+            block[:] = data
+            self.file_handle.seek(0)
+            return 0
+            
+        except Exception as e:
+            print(f"readBlock error: {e}")
+            return -1
     
-    def write_block(self, block_num, data):
-        if not self.file_handle:
-            raise IOError("Disk is not open")
+    def writeBlock(self, bNum: int, block: bytes) -> int:
+        if not self.is_open or not self.file_handle:
+            return -1
         
-        if block_num < 0:
-            raise ValueError("Block number cannot be negative")
+        if bNum < 0:
+            return -1
         
-        if len(data) != BLOCK_SIZE:
-            raise ValueError(f"Data must be exactly {BLOCK_SIZE} bytes, got {len(data)}")
+        if len(block) != BLOCK_SIZE:
+            return -1
         
-        byte_offset = block_num * BLOCK_SIZE
-        
+        byte_offset = bNum * BLOCK_SIZE
         if byte_offset + BLOCK_SIZE > self.disk_size:
-            raise ValueError(f"Block {block_num} is beyond disk size")
+            return END_OF_DISK
         
         try:
             self.file_handle.seek(byte_offset)
-            bytes_written = self.file_handle.write(data)
-            self.file_handle.flush()
+            bytes_written = self.file_handle.write(block)
             
             if bytes_written != BLOCK_SIZE:
-                raise IOError(f"Only wrote {bytes_written} of {BLOCK_SIZE} bytes")
-                
-        except IOError as e:
-            raise IOError(f"Failed to write block {block_num}: {e}")
+                return -1
+            
+            self.file_handle.flush()
+            self.file_handle.seek(0)
+            return 0
+            
+        except Exception as e:
+            print(f"writeBlock error: {e}")
+            return -1
     
-    def closeDisk(self):
-        if self.file_handle:
-            self.file_handle.close()
-            self.file_handle = None
-
-    # ------ Other Functions ------
-
-    def _create_new_disk(self, bytes_size: int):
-        if bytes_size < BLOCK_SIZE:
-            raise ValueError(f"Disk size must be at least {BLOCK_SIZE} bytes")
-        
-        self.disk_size = math.ceil(bytes_size / BLOCK_SIZE) * BLOCK_SIZE
+    def closeDisk(self) -> int:
+        if not self.is_open or not self.file_handle:
+            return -1
         
         try:
-            self.file_handle = open(self.filename, 'wb+')
-            self.file_handle.seek(self.disk_size - 1)
-            self.file_handle.write(b'\x00')
-            self.file_handle.seek(0)
-        except IOError as e:
-            raise IOError(f"Failed to create disk file {self.filename}: {e}")
+            self.file_handle.close()
+            self.file_handle = None
+            self.is_open = False
+            self.disk_size = 0
+            self.filename = None
+            return 0
+            
+        except Exception as e:
+            print(f"closeDisk error: {e}")
+            return -1
     
-    def get_disk_size(self):
-        return self.disk_size
+    # ------ Other Functions ------
+    def getDiskSize(self) -> int:
+        return self.disk_size if self.is_open else 0
     
-    def get_total_blocks(self):
-        return self.disk_size // BLOCK_SIZE
+    def getTotalBlocks(self) -> int:
+        return self.disk_size // BLOCK_SIZE if self.is_open else 0
     
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.closeDisk()
-    
-    def __del__(self):
-        self.closeDisk()
+    def isOpen(self) -> bool:
+        return self.is_open
 
 
-def main():
-    print("Testing BlockDevice...")
-    
-    try: 
-        with libDisk("test_disk.bin", 1024) as disk:
-            print(f"Created disk with {disk.get_total_blocks()} blocks")
-            
-            test_data = b"Hello TinyFS!" + b"\x00" * (256 - 13)
-            disk.write_block(0, test_data)
-            print("Wrote test data to block 0")
-            
-            read_data = disk.read_block(0)
-            print(f"Read back: {read_data[:13].decode()}")
-            
-            try:
-                disk.read_block(100)
-            except ValueError as e:
-                print(f"Expected error for invalid block: {e}")
-        
-        with libDisk("test_disk.bin", 0) as disk:
-            print("Successfully opened existing disk")
-            read_data = disk.read_block(0)
-            print(f"Data still there: {read_data[:13].decode()}")
-        
-        os.remove("test_disk.bin")
-        print("Test completed successfully!")
-            
-    except Exception as error:
-        print(f"Test failed: {error}")
-        if os.path.exists("test_disk.bin"):
-            os.remove("test_disk.bin")
+_disk_instance = libDisk()
 
+def openDisk(filename: str, nBytes: int) -> int:
+    return _disk_instance.openDisk(filename, nBytes)
 
-if __name__ == "__main__":
-    main()
+def readBlock(bNum: int, block: bytearray) -> int:
+    return _disk_instance.readBlock(bNum, block)
+
+def writeBlock(bNum: int, block: bytes) -> int:
+    return _disk_instance.writeBlock(bNum, block)
+
+def closeDisk() -> int:
+    return _disk_instance.closeDisk()
