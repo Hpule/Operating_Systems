@@ -4,7 +4,7 @@ import os
 import math
 from constants import BLOCK_SIZE
 
-class BlockDevice:
+class libDisk:
     
     def __init__(self, filename=str, bytes_size= 0):
         self.filename = filename
@@ -15,11 +15,14 @@ class BlockDevice:
             raise ValueError("Size cannot be negative")
         
         if bytes_size == 0:
-            self._open_existing_disk()
+            self.openDisk()
         else:
             self._create_new_disk(bytes_size)
     
-    def _open_existing_disk(self):
+    # ------ Main functions ------
+    # Mandatory Functions - openDisk, readBlock, writeBlock, closeDisk
+
+    def openDisk(self):
         if not os.path.exists(self.filename):
             raise FileNotFoundError(f"Disk file {self.filename} does not exist")
         
@@ -30,20 +33,6 @@ class BlockDevice:
             self.file_handle.seek(0)
         except IOError as e:
             raise IOError(f"Failed to open disk file {self.filename}: {e}")
-    
-    def _create_new_disk(self, bytes_size: int):
-        if bytes_size < BLOCK_SIZE:
-            raise ValueError(f"Disk size must be at least {BLOCK_SIZE} bytes")
-        
-        self.disk_size = math.ceil(bytes_size / BLOCK_SIZE) * BLOCK_SIZE
-        
-        try:
-            self.file_handle = open(self.filename, 'wb+')
-            self.file_handle.seek(self.disk_size - 1)
-            self.file_handle.write(b'\x00')
-            self.file_handle.seek(0)
-        except IOError as e:
-            raise IOError(f"Failed to create disk file {self.filename}: {e}")
     
     def read_block(self, block_num):
         if not self.file_handle:
@@ -94,10 +83,26 @@ class BlockDevice:
         except IOError as e:
             raise IOError(f"Failed to write block {block_num}: {e}")
     
-    def close(self):
+    def closeDisk(self):
         if self.file_handle:
             self.file_handle.close()
             self.file_handle = None
+
+    # ------ Other Functions ------
+
+    def _create_new_disk(self, bytes_size: int):
+        if bytes_size < BLOCK_SIZE:
+            raise ValueError(f"Disk size must be at least {BLOCK_SIZE} bytes")
+        
+        self.disk_size = math.ceil(bytes_size / BLOCK_SIZE) * BLOCK_SIZE
+        
+        try:
+            self.file_handle = open(self.filename, 'wb+')
+            self.file_handle.seek(self.disk_size - 1)
+            self.file_handle.write(b'\x00')
+            self.file_handle.seek(0)
+        except IOError as e:
+            raise IOError(f"Failed to create disk file {self.filename}: {e}")
     
     def get_disk_size(self):
         return self.disk_size
@@ -109,17 +114,17 @@ class BlockDevice:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        self.closeDisk()
     
     def __del__(self):
-        self.close()
+        self.closeDisk()
 
 
 def main():
     print("Testing BlockDevice...")
     
     try: 
-        with BlockDevice("test_disk.bin", 1024) as disk:
+        with libDisk("test_disk.bin", 1024) as disk:
             print(f"Created disk with {disk.get_total_blocks()} blocks")
             
             test_data = b"Hello TinyFS!" + b"\x00" * (256 - 13)
@@ -134,7 +139,7 @@ def main():
             except ValueError as e:
                 print(f"Expected error for invalid block: {e}")
         
-        with BlockDevice("test_disk.bin", 0) as disk:
+        with libDisk("test_disk.bin", 0) as disk:
             print("Successfully opened existing disk")
             read_data = disk.read_block(0)
             print(f"Data still there: {read_data[:13].decode()}")
