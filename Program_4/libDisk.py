@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
-"""
-libDisk.py - Low-level disk emulation library for TinyFS
-
-This module provides a block-based disk interface that emulates
-a physical disk using a regular file. All disk operations work
-with fixed-size blocks.
-"""
 
 import os
 import math
+import constants
 from typing import Optional
-from constants import BLOCK_SIZE, END_OF_DISK
 
 class DiskError(Exception):
     """Custom exception for disk operations"""
@@ -31,7 +24,7 @@ class libDisk:
             if nBytes < 0:
                 return -1
             
-            if 0 < nBytes < BLOCK_SIZE:
+            if 0 < nBytes < constants.BLOCK_SIZE:
                 return -1  # Disk must be at least one block
             
             self.filename = filename
@@ -46,7 +39,7 @@ class libDisk:
                 self.file_handle.seek(0)
                 
             else:
-                self.disk_size = math.ceil(nBytes / BLOCK_SIZE) * BLOCK_SIZE
+                self.disk_size = math.ceil(nBytes / constants.BLOCK_SIZE) * constants.BLOCK_SIZE
                 self.file_handle = open(filename, 'wb+')
                 
                 self.file_handle.seek(self.disk_size - 1)
@@ -71,15 +64,15 @@ class libDisk:
         if bNum < 0:
             return -1
         
-        byte_offset = bNum * BLOCK_SIZE
-        if byte_offset + BLOCK_SIZE > self.disk_size:
-            return END_OF_DISK
+        byte_offset = bNum * constants.BLOCK_SIZE
+        if byte_offset + constants.BLOCK_SIZE > self.disk_size:
+            return constants.END_OF_DISK
         
         try:
             self.file_handle.seek(byte_offset)
-            data = self.file_handle.read(BLOCK_SIZE)
+            data = self.file_handle.read(constants.BLOCK_SIZE)
             
-            if len(data) != BLOCK_SIZE:
+            if len(data) != constants.BLOCK_SIZE:
                 return -1
             
             block[:] = data
@@ -97,18 +90,18 @@ class libDisk:
         if bNum < 0:
             return -1
         
-        if len(block) != BLOCK_SIZE:
+        if len(block) != constants.BLOCK_SIZE:
             return -1
         
-        byte_offset = bNum * BLOCK_SIZE
-        if byte_offset + BLOCK_SIZE > self.disk_size:
-            return END_OF_DISK
+        byte_offset = bNum * constants.BLOCK_SIZE
+        if byte_offset + constants.BLOCK_SIZE > self.disk_size:
+            return constants.END_OF_DISK
         
         try:
             self.file_handle.seek(byte_offset)
             bytes_written = self.file_handle.write(block)
             
-            if bytes_written != BLOCK_SIZE:
+            if bytes_written != constants.BLOCK_SIZE:
                 return -1
             
             self.file_handle.flush()
@@ -140,7 +133,7 @@ class libDisk:
         return self.disk_size if self.is_open else 0
     
     def getTotalBlocks(self) -> int:
-        return self.disk_size // BLOCK_SIZE if self.is_open else 0
+        return self.disk_size // constants.BLOCK_SIZE if self.is_open else 0
     
     def isOpen(self) -> bool:
         return self.is_open
