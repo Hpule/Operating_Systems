@@ -133,7 +133,7 @@ def test_persistence():
         print("   ✗ Failed to remount filesystem")
     
     fs2.tfs_unmount()
-
+ 
 def test_error_conditions():
     """Test error handling"""
     print("\n=== Testing Error Conditions ===")
@@ -160,7 +160,7 @@ def test_error_conditions():
 
 def main():
     """Run all tests"""
-    print("🚀 TinyFS Comprehensive Test Suite")
+    print("TinyFS Comprehensive Test Suite")
     print("=" * 50)
     
     try:
