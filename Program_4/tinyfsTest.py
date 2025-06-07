@@ -380,7 +380,7 @@ def test_delete_basic():
     fs.tfs_mount("test_d.dsk")
     
     # Open file, write data, then delete
-    fd = fs.tfs_open("delete_me.txt")
+    fd = fs.tfs_open("del_me.txt")
     assert fd >= 0, "File should open successfully"
     
     fs.tfs_write(fd, b"This file will be deleted")
@@ -495,11 +495,11 @@ def test_file_operations_integration():
     print("\n=== Testing File Operations Integration ===")
     
     fs = TinyFS()
-    fs.tfs_mkfs("test_integration.dsk", constants.DEFAULT_DISK_SIZE)
-    fs.tfs_mount("test_integration.dsk")
+    fs.tfs_mkfs("test_i.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_i.dsk")
     
     # Test sequence: open -> write -> close -> reopen -> delete
-    filename = "integration.txt"
+    filename = "int.txt"
     test_data = b"Integration test data"
     
     # Step 1: Open and write
@@ -534,22 +534,22 @@ def test_persistence_across_mount_unmount():
     print("\n=== Testing Persistence Across Mount/Unmount ===")
     
     fs = TinyFS()
-    fs.tfs_mkfs("test_persistence.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mkfs("test_p.dsk", constants.DEFAULT_DISK_SIZE)
     
     # First session: create and write file
-    fs.tfs_mount("test_persistence.dsk")
-    fd = fs.tfs_open("persistent.txt")
+    fs.tfs_mount("test_p.dsk")
+    fd = fs.tfs_open("pers.txt")
     fs.tfs_write(fd, b"Persistent data")
     fs.tfs_close(fd)
     fs.tfs_unmount()
     
     # Second session: try to access file
     fs2 = TinyFS()
-    mount_result = fs2.tfs_mount("test_persistence.dsk")
+    mount_result = fs2.tfs_mount("test_p.dsk")
     assert mount_result == 1, "Should remount successfully"
     
     # Try to open the file (basic test - full persistence requires disk implementation)
-    fd2 = fs2.tfs_open("persistent.txt")
+    fd2 = fs2.tfs_open("pers.txt")
     print(f"Reopen persistent file: fd={fd2}")
     assert fd2 >= 0, "Should be able to open file after remount"
     

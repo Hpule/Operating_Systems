@@ -11,21 +11,26 @@ class TinyFS:
         self.disk = libDisk.libDisk()
         self.is_mounted = False
         self.mounted_filename = None
-        self.open_files: Dict[int, str] = {}  # Missing this!
-        self.next_fd = 0  # Missing this!
+
+        # File tracking - always initialized, no hasattr needed!
+        self.open_files: Dict[int, str] = {}  
+        self.next_fd = 0  
+
+        # File system structure
         self.memory_inode_table = []
         self.free_table = []
+        
+        # Constants
         self.MAGIC_NUMBER = constants.MAGIC_NUMBER
         self.ROOT_DIRECTORY_INODE = 2
         self.MAX_INODE_BLOCKS = 13
         self.MAX_DATA_BLOCKS = 25
 
     def tfs_mkfs(self, filename: str, size: int) -> int:
-        """Fixed mkfs - openDisk returns FD, not 0"""
         print(f"Making file system: {filename}")
 
         try:
-            if len(filename[:-4]) > int(constants.MAX_FILENAME_LENGTH):
+            if len(filename[:-4]) > int(constants.MAX_DISKNAME_LENGTH):
                 print(f"mkfs erorr, filename too big! {len(filename)}")
                 return -1
             else:
@@ -37,7 +42,7 @@ class TinyFS:
                     return -1
 
                 # Create simple superblock
-                block_to_write = bytearray([constants.MAGIC_NUMBER])  # 0x43
+                block_to_write = bytearray([constants.MAGIC_NUMBER])  # 0x5A
                 block_to_write.append(self.ROOT_DIRECTORY_INODE)      # 0x02
                 
                 # Pad to full block size
@@ -63,7 +68,6 @@ class TinyFS:
             return -1
 
     def tfs_mount(self, filename: str) -> int:
-        """Fixed mount - openDisk returns FD, not 0"""
         print("attempting to mount")
         try:
             if self.is_mounted:
@@ -85,7 +89,7 @@ class TinyFS:
                 return -1
             
             # Check magic number (first byte)
-            if buffer[0] == constants.MAGIC_NUMBER:  # 0x43
+            if buffer[0] == constants.MAGIC_NUMBER:  # 0x5A
                 self.is_mounted = True
                 self.mounted_filename = filename
                 print(f"Successfully mounted {filename}")
@@ -100,7 +104,6 @@ class TinyFS:
             return -1
     
     def tfs_unmount(self) -> int:
-        """Fixed unmount implementation"""
         print("unmounting")
         try:
             if not self.is_mounted:
@@ -110,12 +113,11 @@ class TinyFS:
             # Close the disk
             result = self.disk.closeDisk()
             if result == 0:
+                # Reset filesystem state
                 self.is_mounted = False
                 self.mounted_filename = None
-                if hasattr(self, 'open_files'):
-                    self.open_files.clear()
-                if hasattr(self, 'next_fd'):
-                    self.next_fd = 0
+                self.open_files.clear()
+                self.next_fd = 0
                 print("Successfully unmounted")
                 return 1
             else:
@@ -128,39 +130,94 @@ class TinyFS:
 
     # Stub implementations for the other methods to prevent errors
     def tfs_open(self, name: str) -> int:
-        if not self.is_mounted:
-            return -1
-        if not hasattr(self, 'open_files'):
-            self.open_files = {}
-        if not hasattr(self, 'next_fd'):
-            self.next_fd = 0
+        """Open a file for reading/writing"""
+        print(f"Opening file: '{name}'")
         
-        # Check if already open
+        # Clean validation - no hasattr needed!
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
+            return -1
+        
+        if len(name[:-4]) > constants.MAX_FILENAME_LENGTH:
+            print(f"Error: Filename too long (max {constants.MAX_FILENAME_LENGTH} chars)")
+            return -1
+        
+        # Check if file is already open
         for fd, filename in self.open_files.items():
             if filename == name:
+                print(f"File '{name}' already open with fd {fd}")
                 return fd
         
-        # Assign new fd
+        # Assign new file descriptor
         fd = self.next_fd
         self.open_files[fd] = name
         self.next_fd += 1
+        
+        print(f"File '{name}' opened with fd {fd}")
         return fd
-
+    
     def tfs_close(self, fd: int) -> int:
-        if not hasattr(self, 'open_files') or fd not in self.open_files:
+        """Close an open file"""
+        print(f"Closing file descriptor: {fd}")
+        
+        # Clean validation
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
             return -1
+        
+        if fd not in self.open_files:
+            print(f"Error: File descriptor {fd} not open")
+            return -1
+        
+        # Remove from tracking
+        filename = self.open_files[fd]
         del self.open_files[fd]
+        
+        print(f"Closed file '{filename}' (fd {fd})")
         return 0
 
+
     def tfs_write(self, fd: int, data: bytes) -> int:
-        if not hasattr(self, 'open_files') or fd not in self.open_files:
+        """Write data to a file"""
+        print(f"Writing {len(data)} bytes to fd {fd}")
+        
+        # Clean validation
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
             return -1
-        return len(data)  # Return bytes written
+        
+        if fd not in self.open_files:
+            print(f"Error: File descriptor {fd} not open")
+            return -1
+        
+        filename = self.open_files[fd]
+        print(f"Writing to file: '{filename}'")
+        
+        # For now, just return success (stub implementation)
+        # TODO: Implement actual disk writing
+        return len(data)
 
     def tfs_delete(self, fd: int) -> int:
-        if not hasattr(self, 'open_files') or fd not in self.open_files:
+        """Delete a file"""
+        print(f"Deleting file with fd: {fd}")
+        
+        # Clean validation
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
             return -1
+        
+        if fd not in self.open_files:
+            print(f"Error: File descriptor {fd} not open")
+            return -1
+        
+        filename = self.open_files[fd]
+        print(f"Deleting file: '{filename}'")
+        
+        # Remove from tracking
         del self.open_files[fd]
+        
+        # TODO: Implement actual disk deletion
+        print(f"File '{filename}' deleted successfully")
         return 0
 
     def tfs_readByte(self, fd: int) -> int:
