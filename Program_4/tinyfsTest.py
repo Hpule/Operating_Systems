@@ -1,3 +1,4 @@
+# tinyfsTests.py
 #!/usr/bin/env python3
 """
 Extended TinyFS Test Suite
@@ -978,7 +979,7 @@ def run_all_tests():
             test_func()
             passed += 1
         except Exception as e:
-            print(f"\n❌ {test_func.__name__} FAILED: {e}")
+            print(f"\n {test_func.__name__} FAILED: {e}")
             import traceback
             traceback.print_exc()
             failed += 1
@@ -990,10 +991,10 @@ def run_all_tests():
     print(f"TEST RESULTS: {passed} passed, {failed} failed")
     
     if failed == 0:
-        print("🎉 ALL TESTS PASSED!")
+        print("ALL TESTS PASSED!")
         print("Your TinyFS implementation is working correctly!")
     else:
-        print(f"❌ {failed} test(s) failed. Check the implementation.")
+        print(f" {failed} test(s) failed. Check the implementation.")
     
     return failed == 0
 

@@ -1,3 +1,4 @@
+# tinyfs.py
 from typing import Dict, List, Optional
 import time
 import struct
@@ -185,9 +186,9 @@ class TinyFS:
             print(f"Error: Filename too long (max {constants.MAX_FILENAME_LENGTH} chars)")
             return -1
         
-        # Check if file is already open
-        for fd, filename in self.open_files.items():
-            if filename == name:
+        # Check if file is already open - FIXED!
+        for fd, file_handle in self.open_files.items():
+            if file_handle.filename == name:  # Compare with file_handle.filename, not file_handle
                 print(f"File '{name}' already open with fd {fd}")
                 return fd
         

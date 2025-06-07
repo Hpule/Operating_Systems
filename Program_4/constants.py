@@ -1,3 +1,4 @@
+# constants.py
 BLOCK_SIZE = 256
 MAGIC_NUMBER = 0x5A
 BITMAP_SIZE = 248
