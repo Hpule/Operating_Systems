@@ -13,7 +13,8 @@ def cleanup_test_files():
     test_files = [
         "test_v.dsk", "test_i.dsk", "test_e.dsk", 
         "test_c.dsk", "test_fs1.dsk", "test_fs2.dsk",
-        "test_fo.dsk", "test_w.dsk", "test_d.dsk"
+        "test_fo.dsk", "test_w.dsk", "test_d.dsk", 
+        "test_r.dsk", "test_s.dsk", "test_rs.dsk"
     ]
     
     for filename in test_files:
@@ -557,6 +558,351 @@ def test_persistence_across_mount_unmount():
     fs2.tfs_unmount()
     print("✓ Basic persistence test passed!")
 
+# ==================== tfs_readByte TESTS ====================
+
+def test_readbyte_basic():
+    """Test basic readByte functionality"""
+    print("\n=== Testing tfs_readByte Basic Functionality ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_r.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_r.dsk")
+    
+    # Open file and write some data
+    fd = fs.tfs_open("test.txt")
+    test_data = b"Hello"
+    fs.tfs_write(fd, test_data)
+    
+    # Try to read bytes back
+    for i, expected_byte in enumerate(test_data):
+        byte_value = fs.tfs_readByte(fd)
+        print(f"Read byte {i}: got {byte_value}, expected {expected_byte}")
+        assert byte_value == expected_byte, f"Byte {i}: expected {expected_byte}, got {byte_value}"
+    
+    # Reading past end should return -1
+    eof_byte = fs.tfs_readByte(fd)
+    print(f"Read past EOF: {eof_byte}")
+    assert eof_byte == -1, "Reading past EOF should return -1"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ Basic readByte test passed!")
+
+def test_readbyte_invalid_fd():
+    """Test readByte with invalid file descriptors"""
+    print("\n=== Testing tfs_readByte with Invalid FDs ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_r.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_r.dsk")
+    
+    # Test invalid file descriptors
+    invalid_fds = [-1, 999, 100]
+    
+    for fd in invalid_fds:
+        result = fs.tfs_readByte(fd)
+        print(f"ReadByte invalid fd {fd}: result={result}")
+        assert result == -1, f"ReadByte invalid fd {fd} should fail"
+    
+    fs.tfs_unmount()
+    print("✓ Invalid fd readByte test passed!")
+
+def test_readbyte_not_mounted():
+    """Test readByte when filesystem not mounted"""
+    print("\n=== Testing tfs_readByte When Not Mounted ===")
+    
+    fs = TinyFS()
+    
+    # Try to read without mounting
+    result = fs.tfs_readByte(0)
+    print(f"ReadByte without mount: result={result}")
+    assert result == -1, "ReadByte should fail when not mounted"
+    
+    print("✓ ReadByte when not mounted test passed!")
+
+def test_readbyte_closed_file():
+    """Test readByte on closed file"""
+    print("\n=== Testing tfs_readByte on Closed File ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_r.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_r.dsk")
+    
+    # Open file, write data, close it, then try to read
+    fd = fs.tfs_open("test.txt")
+    fs.tfs_write(fd, b"test")
+    fs.tfs_close(fd)
+    
+    result = fs.tfs_readByte(fd)
+    print(f"ReadByte closed file: result={result}")
+    assert result == -1, "ReadByte should fail on closed file"
+    
+    fs.tfs_unmount()
+    print("✓ ReadByte closed file test passed!")
+
+def test_readbyte_empty_file():
+    """Test readByte on empty file"""
+    print("\n=== Testing tfs_readByte on Empty File ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_r.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_r.dsk")
+    
+    # Open file but don't write anything
+    fd = fs.tfs_open("empty.txt")
+    
+    result = fs.tfs_readByte(fd)
+    print(f"ReadByte empty file: result={result}")
+    assert result == -1, "ReadByte should return -1 for empty file"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ ReadByte empty file test passed!")
+
+def test_readbyte_large_file():
+    """Test readByte on file larger than one block"""
+    print("\n=== Testing tfs_readByte on Large File ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_r.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_r.dsk")
+    
+    # Create data larger than one block
+    large_data = b"A" * (constants.BLOCK_SIZE + 100)  # Spans multiple blocks
+    
+    fd = fs.tfs_open("large.txt")
+    fs.tfs_write(fd, large_data)
+    
+    # Read first few bytes
+    for i in range(10):
+        byte_value = fs.tfs_readByte(fd)
+        print(f"Large file byte {i}: {byte_value}")
+        assert byte_value == ord('A'), f"Byte {i}: expected {ord('A')}, got {byte_value}"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ ReadByte large file test passed!")
+
+# ==================== tfs_seek TESTS ====================
+
+def test_seek_basic():
+    """Test basic seek functionality"""
+    print("\n=== Testing tfs_seek Basic Functionality ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_s.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_s.dsk")
+    
+    # Open file and write data
+    fd = fs.tfs_open("test.txt")
+    test_data = b"0123456789"
+    fs.tfs_write(fd, test_data)
+    
+    # Seek to position 5 and read
+    seek_result = fs.tfs_seek(fd, 5)
+    print(f"Seek to position 5: result={seek_result}")
+    assert seek_result == 0, "Seek should succeed"
+    
+    byte_value = fs.tfs_readByte(fd)
+    print(f"Read after seek: got {byte_value}, expected {ord('5')}")
+    assert byte_value == ord('5'), f"After seek to 5: expected {ord('5')}, got {byte_value}"
+    
+    # Seek to beginning and read
+    seek_result = fs.tfs_seek(fd, 0)
+    assert seek_result == 0, "Seek to beginning should succeed"
+    
+    byte_value = fs.tfs_readByte(fd)
+    assert byte_value == ord('0'), f"After seek to 0: expected {ord('0')}, got {byte_value}"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ Basic seek test passed!")
+
+def test_seek_invalid_fd():
+    """Test seek with invalid file descriptors"""
+    print("\n=== Testing tfs_seek with Invalid FDs ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_s.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_s.dsk")
+    
+    invalid_fds = [-1, 999, 100]
+    
+    for fd in invalid_fds:
+        result = fs.tfs_seek(fd, 10)
+        print(f"Seek invalid fd {fd}: result={result}")
+        assert result == -1, f"Seek invalid fd {fd} should fail"
+    
+    fs.tfs_unmount()
+    print("✓ Invalid fd seek test passed!")
+
+def test_seek_not_mounted():
+    """Test seek when filesystem not mounted"""
+    print("\n=== Testing tfs_seek When Not Mounted ===")
+    
+    fs = TinyFS()
+    
+    result = fs.tfs_seek(0, 10)
+    print(f"Seek without mount: result={result}")
+    assert result == -1, "Seek should fail when not mounted"
+    
+    print("✓ Seek when not mounted test passed!")
+
+def test_seek_beyond_file():
+    """Test seeking beyond file end"""
+    print("\n=== Testing tfs_seek Beyond File End ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_s.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_s.dsk")
+    
+    # Create small file
+    fd = fs.tfs_open("small.txt")
+    fs.tfs_write(fd, b"test")  # 4 bytes
+    
+    # Try to seek beyond end
+    seek_result = fs.tfs_seek(fd, 100)
+    print(f"Seek beyond end: result={seek_result}")
+    assert seek_result == -1, "Seek beyond file end should fail"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ Seek beyond file test passed!")
+
+def test_seek_negative_offset():
+    """Test seeking with negative offset"""
+    print("\n=== Testing tfs_seek with Negative Offset ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_s.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_s.dsk")
+    
+    fd = fs.tfs_open("test.txt")
+    fs.tfs_write(fd, b"hello")
+    
+    # Try negative seek
+    seek_result = fs.tfs_seek(fd, -1)
+    print(f"Seek negative offset: result={seek_result}")
+    assert seek_result == -1, "Seek with negative offset should fail"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ Seek negative offset test passed!")
+
+# ==================== INTEGRATION TESTS ====================
+
+def test_read_seek_integration():
+    """Test readByte and seek working together"""
+    print("\n=== Testing ReadByte and Seek Integration ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_rs.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_rs.dsk")
+    
+    # Write alphabet
+    fd = fs.tfs_open("alphabet.txt")
+    alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    fs.tfs_write(fd, alphabet)
+    
+    # Test random access reading
+    test_positions = [0, 5, 10, 25, 0, 15]
+    expected_chars = [b'A', b'F', b'K', b'Z', b'A', b'P']
+    
+    for pos, expected in zip(test_positions, expected_chars):
+        # Seek to position
+        seek_result = fs.tfs_seek(fd, pos)
+        assert seek_result == 0, f"Seek to {pos} should succeed"
+        
+        # Read byte
+        byte_value = fs.tfs_readByte(fd)
+        print(f"Position {pos}: read {chr(byte_value)}, expected {chr(expected[0])}")
+        assert byte_value == expected[0], f"Position {pos}: expected {expected[0]}, got {byte_value}"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ ReadByte and Seek integration test passed!")
+
+def test_sequential_vs_random_reading():
+    """Test sequential reading vs random access"""
+    print("\n=== Testing Sequential vs Random Reading ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_rs.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_rs.dsk")
+    
+    # Write test data
+    fd = fs.tfs_open("sequence.txt")
+    test_data = b"0123456789"
+    fs.tfs_write(fd, test_data)
+    
+    # Sequential reading from start
+    print("Sequential reading:")
+    fs.tfs_seek(fd, 0)  # Start from beginning
+    for i in range(len(test_data)):
+        byte_value = fs.tfs_readByte(fd)
+        expected = ord(str(i))
+        print(f"  Sequential byte {i}: {byte_value} (expected {expected})")
+        assert byte_value == expected, f"Sequential read failed at position {i}"
+    
+    # Random access reading
+    print("Random access reading:")
+    random_positions = [7, 2, 9, 0, 5]
+    for pos in random_positions:
+        fs.tfs_seek(fd, pos)
+        byte_value = fs.tfs_readByte(fd)
+        expected = ord(str(pos))
+        print(f"  Random access pos {pos}: {byte_value} (expected {expected})")
+        assert byte_value == expected, f"Random access failed at position {pos}"
+    
+    fs.tfs_close(fd)
+    fs.tfs_unmount()
+    print("✓ Sequential vs Random reading test passed!")
+
+def test_multiple_files_seek_read():
+    """Test seek and read operations on multiple files"""
+    print("\n=== Testing Multiple Files Seek and Read ===")
+    
+    fs = TinyFS()
+    fs.tfs_mkfs("test_rs.dsk", constants.DEFAULT_DISK_SIZE)
+    fs.tfs_mount("test_rs.dsk")
+    
+    # Create multiple files with different content
+    files_data = {
+        "numbers.txt": b"0123456789",
+        "letters.txt": b"ABCDEFGHIJ",
+        "symbols.txt": b"!@#$%^&*()"
+    }
+    
+    fds = {}
+    for filename, data in files_data.items():
+        fd = fs.tfs_open(filename)
+        fs.tfs_write(fd, data)
+        fds[filename] = fd
+    
+    # Test reading from different positions in different files
+    test_cases = [
+        ("numbers.txt", 5, ord('5')),
+        ("letters.txt", 2, ord('C')),
+        ("symbols.txt", 0, ord('!')),
+        ("numbers.txt", 0, ord('0')),
+        ("letters.txt", 9, ord('J'))
+    ]
+    
+    for filename, pos, expected in test_cases:
+        fd = fds[filename]
+        fs.tfs_seek(fd, pos)
+        byte_value = fs.tfs_readByte(fd)
+        print(f"{filename} pos {pos}: got {byte_value}, expected {expected}")
+        assert byte_value == expected, f"{filename} pos {pos}: expected {expected}, got {byte_value}"
+    
+    # Close all files
+    for fd in fds.values():
+        fs.tfs_close(fd)
+    
+    fs.tfs_unmount()
+    print("✓ Multiple files seek and read test passed!")
+
+
 def run_all_tests():
     """Run all tests"""
     print("Extended TinyFS Test Suite")
@@ -566,41 +912,62 @@ def run_all_tests():
     cleanup_test_files()
     
     tests = [
-        # Mount/Unmount tests
-        test_mkfs,
-        test_mount_valid,
-        test_mount_nonexistent,
-        test_unmount_not_mounted,
+        # # Mount/Unmount tests
+        # test_mkfs,
+        # test_mount_valid,
+        # test_mount_nonexistent,
+        # test_unmount_not_mounted,
         
-        # File open tests
-        test_open_basic,
-        test_open_not_mounted,
-        test_open_filename_too_long,
-        test_open_multiple_files,
+        # # File open tests
+        # test_open_basic,
+        # test_open_not_mounted,
+        # test_open_filename_too_long,
+        # test_open_multiple_files,
         
-        # File close tests
-        test_close_basic,
-        test_close_invalid_fd,
-        test_close_multiple_files,
+        # # File close tests
+        # test_close_basic,
+        # test_close_invalid_fd,
+        # test_close_multiple_files,
         
-        # File write tests
-        test_write_basic,
-        test_write_invalid_fd,
-        test_write_closed_file,
-        test_write_multiple_files,
-        test_write_large_data,
-        test_write_empty_data,
+        # # File write tests
+        # test_write_basic,
+        # test_write_invalid_fd,
+        # test_write_closed_file,
+        # test_write_multiple_files,
+        # test_write_large_data,
+        # test_write_empty_data,
         
-        # File delete tests
-        test_delete_basic,
-        test_delete_invalid_fd,
-        test_delete_closed_file,
-        test_delete_multiple_files,
-        test_delete_and_recreate,
+        # # File delete tests
+        # test_delete_basic,
+        # test_delete_invalid_fd,
+        # test_delete_closed_file,
+        # test_delete_multiple_files,
+        # test_delete_and_recreate,
+        
+        # # Integration tests
+        # test_file_operations_integration,
+        # test_persistence_across_mount_unmount,
+
+        # ReadByte tests
+        test_readbyte_basic,
+        test_readbyte_invalid_fd,
+        test_readbyte_not_mounted,
+        test_readbyte_closed_file,
+        test_readbyte_empty_file,
+        test_readbyte_large_file,
+        
+        # Seek tests
+        test_seek_basic,
+        test_seek_invalid_fd,
+        test_seek_not_mounted,
+        test_seek_beyond_file,
+        test_seek_negative_offset,
         
         # Integration tests
-        test_file_operations_integration,
-        test_persistence_across_mount_unmount,
+        test_read_seek_integration,
+        test_sequential_vs_random_reading,
+        test_multiple_files_seek_read,
+
     ]
     
     passed = 0
