@@ -912,41 +912,41 @@ def run_all_tests():
     cleanup_test_files()
     
     tests = [
-        # # Mount/Unmount tests
-        # test_mkfs,
-        # test_mount_valid,
-        # test_mount_nonexistent,
-        # test_unmount_not_mounted,
+        # Mount/Unmount tests
+        test_mkfs,
+        test_mount_valid,
+        test_mount_nonexistent,
+        test_unmount_not_mounted,
         
-        # # File open tests
-        # test_open_basic,
-        # test_open_not_mounted,
-        # test_open_filename_too_long,
-        # test_open_multiple_files,
+        # File open tests
+        test_open_basic,
+        test_open_not_mounted,
+        test_open_filename_too_long,
+        test_open_multiple_files,
         
-        # # File close tests
-        # test_close_basic,
-        # test_close_invalid_fd,
-        # test_close_multiple_files,
+        # File close tests
+        test_close_basic,
+        test_close_invalid_fd,
+        test_close_multiple_files,
         
-        # # File write tests
-        # test_write_basic,
-        # test_write_invalid_fd,
-        # test_write_closed_file,
-        # test_write_multiple_files,
-        # test_write_large_data,
-        # test_write_empty_data,
+        # File write tests
+        test_write_basic,
+        test_write_invalid_fd,
+        test_write_closed_file,
+        test_write_multiple_files,
+        test_write_large_data,
+        test_write_empty_data,
         
-        # # File delete tests
-        # test_delete_basic,
-        # test_delete_invalid_fd,
-        # test_delete_closed_file,
-        # test_delete_multiple_files,
-        # test_delete_and_recreate,
+        # File delete tests
+        test_delete_basic,
+        test_delete_invalid_fd,
+        test_delete_closed_file,
+        test_delete_multiple_files,
+        test_delete_and_recreate,
         
-        # # Integration tests
-        # test_file_operations_integration,
-        # test_persistence_across_mount_unmount,
+        # Integration tests
+        test_file_operations_integration,
+        test_persistence_across_mount_unmount,
 
         # ReadByte tests
         test_readbyte_basic,

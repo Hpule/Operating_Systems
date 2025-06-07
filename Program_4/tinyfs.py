@@ -66,7 +66,10 @@ class TinyFS:
         self.ROOT_DIRECTORY_INODE = 2
         self.MAX_INODE_BLOCKS = 13
         self.MAX_DATA_BLOCKS = 25
-     
+
+    # ------ Main functions ------
+    # Mandatory Functions - tfs (_mkfs, _mount, _unmount, _open, _close, _write, _delete, _readByte, _seek)
+
     def tfs_mkfs(self, filename: str, size: int) -> int:
         print(f"Making file system: {filename}")
 
@@ -174,7 +177,6 @@ class TinyFS:
         """Open a file for reading/writing"""
         print(f"Opening file: '{name}'")
         
-        # Clean validation - no hasattr needed!
         if not self.is_mounted:
             print("Error: Filesystem not mounted")
             return -1
@@ -308,7 +310,7 @@ class TinyFS:
         
         return result
 
-
+    # ------ Helper functions ------
     # Helper methods you might need
     def _init_inode_table(self):
         """Initialize inode table - reference code style but as class method"""
