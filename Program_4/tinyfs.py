@@ -23,33 +23,38 @@ class TinyFS:
     def tfs_mkfs(self, filename: str, size: int) -> int:
         """Fixed mkfs - openDisk returns FD, not 0"""
         print(f"Making file system: {filename}")
-        
-        try:
-            # openDisk returns file descriptor (≥0) on success, -1 on failure
-            result = self.disk.openDisk(filename, size)
-            if result < 0:  # Changed from != 0 to < 0
-                print("Failed to create disk")
-                return -1
 
-            # Create simple superblock
-            block_to_write = bytearray([constants.MAGIC_NUMBER])  # 0x43
-            block_to_write.append(self.ROOT_DIRECTORY_INODE)      # 0x02
-            
-            # Pad to full block size
-            while len(block_to_write) < constants.BLOCK_SIZE:
-                block_to_write.append(0x00)
-            
-            # Write superblock to block 0
-            result = self.disk.writeBlock(0, bytes(block_to_write))
-            if result != 0:  # writeBlock returns 0 on success
-                print("Failed to write superblock")
-                self.disk.closeDisk()
+        try:
+            if len(filename[:-4]) > int(constants.MAX_FILENAME_LENGTH):
+                print(f"mkfs erorr, filename too big! {len(filename)}")
                 return -1
-            
-            # Close disk
-            self.disk.closeDisk()
-            print(f"Filesystem {filename} created successfully")
-            return 0
+            else:
+                    
+                # openDisk returns file descriptor (≥0) on success, -1 on failure
+                result = self.disk.openDisk(filename, size)
+                if result < 0:  # Changed from != 0 to < 0
+                    print("Failed to create disk")
+                    return -1
+
+                # Create simple superblock
+                block_to_write = bytearray([constants.MAGIC_NUMBER])  # 0x43
+                block_to_write.append(self.ROOT_DIRECTORY_INODE)      # 0x02
+                
+                # Pad to full block size
+                while len(block_to_write) < constants.BLOCK_SIZE:
+                    block_to_write.append(0x00)
+                
+                # Write superblock to block 0
+                result = self.disk.writeBlock(0, bytes(block_to_write))
+                if result != 0:  # writeBlock returns 0 on success
+                    print("Failed to write superblock")
+                    self.disk.closeDisk()
+                    return -1
+                
+                # Close disk
+                self.disk.closeDisk()
+                print(f"Filesystem {filename} created successfully")
+                return 0
             
         except Exception as e:
             print(f"mkfs error: {e}")
