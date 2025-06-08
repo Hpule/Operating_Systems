@@ -1,4 +1,3 @@
-# tinyfs.py
 from typing import Dict, List, Optional
 import time
 import struct
@@ -14,13 +13,36 @@ class FileHandle:
         self.content = bytearray()  # File content in memory
         self.position = 0           # Current read/write position
         self.is_dirty = False       # Has been modified
+        self.is_read_only = False   # NEW: Read-only flag
     
     def write(self, data: bytes) -> int:
         """Write data to file content"""
+        if self.is_read_only:  # NEW: Check read-only
+            return -1  # Cannot write to read-only file
+        
         # For now, append to content (simple implementation)
         self.content.extend(data)
         self.is_dirty = True
         return len(data)
+    
+    def write_byte(self, byte_value: int) -> int:  # NEW METHOD
+        """Write one byte at current position"""
+        if self.is_read_only:
+            return -1  # Cannot write to read-only file
+        
+        if byte_value < 0 or byte_value > 255:
+            return -1  # Invalid byte value
+        
+        # If position is at end, append
+        if self.position >= len(self.content):
+            self.content.append(byte_value)
+        else:
+            # Overwrite existing byte
+            self.content[self.position] = byte_value
+        
+        self.position += 1
+        self.is_dirty = True
+        return 0  # Success
     
     def read_byte(self) -> int:
         """Read one byte at current position"""
@@ -220,7 +242,6 @@ class TinyFS:
         print(f"Closed file '{filename}' (fd {fd})")
         return 0
 
-
     def tfs_write(self, fd: int, data: bytes) -> int:
         """Write data to a file"""
         print(f"Writing {len(data)} bytes to fd {fd}")
@@ -235,9 +256,17 @@ class TinyFS:
             return -1
         
         file_handle = self.open_files[fd]
+        
+        # NEW: Check if file is read-only
+        if file_handle.is_read_only:
+            print(f"Error: File '{file_handle.filename}' is read-only")
+            return -1
+        
         bytes_written = file_handle.write(data)
         
-        print(f"Wrote {bytes_written} bytes to file '{file_handle.filename}'")
+        if bytes_written > 0:
+            print(f"Wrote {bytes_written} bytes to file '{file_handle.filename}'")
+        
         return bytes_written
 
     def tfs_delete(self, fd: int) -> int:
@@ -253,14 +282,20 @@ class TinyFS:
             print(f"Error: File descriptor {fd} not open")
             return -1
         
-        filename = self.open_files[fd]
-        print(f"Deleting file: '{filename}'")
+        file_handle = self.open_files[fd]
+        
+        # NEW: Check if file is read-only
+        if file_handle.is_read_only:
+            print(f"Error: Cannot delete read-only file '{file_handle.filename}'")
+            return -1
+        
+        print(f"Deleting file: '{file_handle}'")
         
         # Remove from tracking
         del self.open_files[fd]
         
         # TODO: Implement actual disk deletion
-        print(f"File '{filename}' deleted successfully")
+        print(f"File '{file_handle}' deleted successfully")
         return 0
 
     def tfs_readByte(self, fd: int) -> int:
@@ -311,6 +346,112 @@ class TinyFS:
         
         return result
 
+    # NEW ADDITIONAL FEATURES: Read-only and writeByte support
+
+    def tfs_makeRO(self, name: str) -> int:
+        """Make a file read-only"""
+        print(f"Making file '{name}' read-only")
+        
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
+            return -1
+        
+        # Find the file in open files
+        for fd, file_handle in self.open_files.items():
+            if file_handle.filename == name:
+                file_handle.is_read_only = True
+                print(f"File '{name}' is now read-only")
+                return 0
+        
+        print(f"Error: File '{name}' not found or not open")
+        return -1
+
+    def tfs_makeRW(self, name: str) -> int:
+        """Make a file read-write"""
+        print(f"Making file '{name}' read-write")
+        
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
+            return -1
+        
+        # Find the file in open files
+        for fd, file_handle in self.open_files.items():
+            if file_handle.filename == name:
+                file_handle.is_read_only = False
+                print(f"File '{name}' is now read-write")
+                return 0
+        
+        print(f"Error: File '{name}' not found or not open")
+        return -1
+
+    def tfs_writeByte(self, fd: int, data: int) -> int:
+        """Write one byte to a file at current position"""
+        print(f"Writing byte {data} to fd {fd}")
+        
+        # Clean validation
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
+            return -1
+        
+        if fd not in self.open_files:
+            print(f"Error: File descriptor {fd} not open")
+            return -1
+        
+        file_handle = self.open_files[fd]
+        result = file_handle.write_byte(data)
+        
+        if result == 0:
+            print(f"Wrote byte {data} to file '{file_handle.filename}' at position {file_handle.position - 1}")
+        else:
+            if file_handle.is_read_only:
+                print(f"Error: File '{file_handle.filename}' is read-only")
+            else:
+                print(f"Error: Invalid byte value {data}")
+        
+        return result
+    def tfs_readdir(self):
+        """List all files in the filesystem (directory listing)"""
+        print("Listing directory contents")
+        
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
+            return []
+        
+        # Get list of all open files (represents files in filesystem)
+        filenames = []
+        for fd, file_handle in self.open_files.items():
+            filenames.append(file_handle.filename)
+        
+        print(f"Found {len(filenames)} files: {filenames}")
+        return filenames
+
+    def tfs_rename(self, old_name: str, new_name: str) -> int:
+        """Rename a file"""
+        print(f"Renaming file '{old_name}' to '{new_name}'")
+        
+        if not self.is_mounted:
+            print("Error: Filesystem not mounted")
+            return -1
+        
+        if len(new_name[:-4]) > constants.MAX_FILENAME_LENGTH:
+            print(f"Error: New filename too long (max {constants.MAX_FILENAME_LENGTH} chars)")
+            return -1
+        
+        # Check if new name already exists
+        for fd, file_handle in self.open_files.items():
+            if file_handle.filename == new_name:
+                print(f"Error: File '{new_name}' already exists")
+                return -1
+        
+        # Find the file to rename
+        for fd, file_handle in self.open_files.items():
+            if file_handle.filename == old_name:
+                file_handle.filename = new_name
+                print(f"File renamed from '{old_name}' to '{new_name}'")
+                return 0
+        
+        print(f"Error: File '{old_name}' not found")
+        return -1
     # ------ Helper functions ------
     # Helper methods you might need
     def _init_inode_table(self):
@@ -362,7 +503,6 @@ class TinyFS:
         # Placeholder implementation
         return -1
     
-
     def get_filesystem_status(self):
         """Get current filesystem status for debugging"""
         open_file_info = {}
@@ -371,7 +511,8 @@ class TinyFS:
                 'filename': file_handle.filename,
                 'size': file_handle.get_size(),
                 'position': file_handle.position,
-                'dirty': file_handle.is_dirty
+                'dirty': file_handle.is_dirty,
+                'read_only': file_handle.is_read_only  # NEW
             }
         
         return {
@@ -391,7 +532,8 @@ class TinyFS:
             print(f"Mounted file: {status['mounted_file']}")
             print(f"Open files: {status['open_files']}")
             for fd, info in status['file_details'].items():
-                print(f"  fd {fd}: '{info['filename']}' (size: {info['size']}, pos: {info['position']}, dirty: {info['dirty']})")
+                ro_status = " (READ-ONLY)" if info['read_only'] else ""
+                print(f"  fd {fd}: '{info['filename']}' (size: {info['size']}, pos: {info['position']}, dirty: {info['dirty']}){ro_status}")
         print("====================")
 
     def print_file_content(self, fd: int):
@@ -405,6 +547,7 @@ class TinyFS:
         print(f"Size: {file_handle.get_size()} bytes")
         print(f"Position: {file_handle.position}")
         print(f"Content: {file_handle.content}")
+        print(f"Read-only: {file_handle.is_read_only}")
         if file_handle.content:
             try:
                 print(f"As string: '{file_handle.content.decode('utf-8', errors='replace')}'")
@@ -414,3 +557,54 @@ class TinyFS:
 
 if __name__ == "__main__":
     print("TinyFS module loaded. Run tinyfsTest.py to test functions.")
+
+# Add these methods to your TinyFS class in tinyfs.py
+
+def tfs_readdir(self) -> List[str]:
+    """List all files in the filesystem (directory listing)"""
+    print("Listing directory contents")
+    
+    if not self.is_mounted:
+        print("Error: Filesystem not mounted")
+        return []
+    
+    # Get list of all open files (represents files in filesystem)
+    filenames = []
+    for fd, file_handle in self.open_files.items():
+        filenames.append(file_handle.filename)
+    
+    print(f"Found {len(filenames)} files: {filenames}")
+    return filenames
+
+def tfs_rename(self, old_name: str, new_name: str) -> int:
+    """Rename a file"""
+    print(f"Renaming file '{old_name}' to '{new_name}'")
+    
+    if not self.is_mounted:
+        print("Error: Filesystem not mounted")
+        return -1
+    
+    if len(new_name[:-4]) > constants.MAX_FILENAME_LENGTH:
+        print(f"Error: New filename too long (max {constants.MAX_FILENAME_LENGTH} chars)")
+        return -1
+    
+    # Check if new name already exists
+    for fd, file_handle in self.open_files.items():
+        if file_handle.filename == new_name:
+            print(f"Error: File '{new_name}' already exists")
+            return -1
+    
+    # Find the file to rename
+    for fd, file_handle in self.open_files.items():
+        if file_handle.filename == old_name:
+            file_handle.filename = new_name
+            print(f"File renamed from '{old_name}' to '{new_name}'")
+            return 0
+    
+    print(f"Error: File '{old_name}' not found")
+    return -1
+
+
+
+
+
