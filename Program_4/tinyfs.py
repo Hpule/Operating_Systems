@@ -10,12 +10,12 @@ class FileHandle:
         self.filename = filename
         self.content = bytearray()  # File content in memory
         self.position = 0           # Current read/write position
-        self.is_dirty = False       # Has been modified
-        self.is_read_only = False   # NEW: Read-only flag
+        self.is_dirty = False 
+        self.is_read_only = False   
     
     def write(self, data: bytes) -> int:
         """Write data to file content"""
-        if self.is_read_only:  # NEW: Check read-only
+        if self.is_read_only:  
             return -1  # Cannot write to read-only file
         
         # For now, append to content (simple implementation)
@@ -23,7 +23,7 @@ class FileHandle:
         self.is_dirty = True
         return len(data)
     
-    def write_byte(self, byte_value: int) -> int:  # NEW METHOD
+    def write_byte(self, byte_value: int) -> int:
         """Write one byte at current position"""
         if self.is_read_only:
             return -1  # Cannot write to read-only file
@@ -224,7 +224,7 @@ class TinyFS:
         """Close an open file"""
         print(f"Closing file descriptor: {fd}")
         
-        # Clean validation
+        # Scrub Srucb Scrub
         if not self.is_mounted:
             print("Error: Filesystem not mounted")
             return -1
@@ -255,7 +255,6 @@ class TinyFS:
         
         file_handle = self.open_files[fd]
         
-        # NEW: Check if file is read-only
         if file_handle.is_read_only:
             print(f"Error: File '{file_handle.filename}' is read-only")
             return -1
@@ -282,7 +281,6 @@ class TinyFS:
         
         file_handle = self.open_files[fd]
         
-        # NEW: Check if file is read-only
         if file_handle.is_read_only:
             print(f"Error: Cannot delete read-only file '{file_handle.filename}'")
             return -1
@@ -344,8 +342,7 @@ class TinyFS:
         
         return result
 
-    # NEW ADDITIONAL FEATURES: Read-only and writeByte support
-
+    # ADDITIONAL FEATURES: Read-only and writeByte support
     def tfs_makeRO(self, name: str) -> int:
         """Make a file read-only"""
         print(f"Making file '{name}' read-only")
@@ -451,7 +448,6 @@ class TinyFS:
         print(f"Error: File '{old_name}' not found")
         return -1
     # ------ Helper functions ------
-    # Helper methods you might need
     def _init_inode_table(self):
         """Initialize inode table - reference code style but as class method"""
         self.memory_inode_table = []
@@ -531,53 +527,3 @@ class TinyFS:
 
 if __name__ == "__main__":
     print("TinyFS module loaded. Run tinyfsTest.py to test functions.")
-
-# Add these methods to your TinyFS class in tinyfs.py
-def tfs_readdir(self) -> List[str]:
-    """List all files in the filesystem (directory listing)"""
-    print("Listing directory contents")
-    
-    if not self.is_mounted:
-        print("Error: Filesystem not mounted")
-        return []
-    
-    # Get list of all open files (represents files in filesystem)
-    filenames = []
-    for fd, file_handle in self.open_files.items():
-        filenames.append(file_handle.filename)
-    
-    print(f"Found {len(filenames)} files: {filenames}")
-    return filenames
-
-def tfs_rename(self, old_name: str, new_name: str) -> int:
-    """Rename a file"""
-    print(f"Renaming file '{old_name}' to '{new_name}'")
-    
-    if not self.is_mounted:
-        print("Error: Filesystem not mounted")
-        return -1
-    
-    if len(new_name[:-4]) > constants.MAX_FILENAME_LENGTH:
-        print(f"Error: New filename too long (max {constants.MAX_FILENAME_LENGTH} chars)")
-        return -1
-    
-    # Check if new name already exists
-    for fd, file_handle in self.open_files.items():
-        if file_handle.filename == new_name:
-            print(f"Error: File '{new_name}' already exists")
-            return -1
-    
-    # Find the file to rename
-    for fd, file_handle in self.open_files.items():
-        if file_handle.filename == old_name:
-            file_handle.filename = new_name
-            print(f"File renamed from '{old_name}' to '{new_name}'")
-            return 0
-    
-    print(f"Error: File '{old_name}' not found")
-    return -1
-
-
-
-
-
