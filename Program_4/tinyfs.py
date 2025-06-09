@@ -1,10 +1,8 @@
 from typing import Dict, List, Optional
 import time
-import struct
-import os
 import libDisk
 import constants
-from fs_structures import SuperBlock, INode, FileExtent, BlockAttributes
+from fs_structures import INode
 
 class FileHandle:
     """Represents an open file with content and position tracking"""
@@ -473,31 +471,7 @@ class TinyFS:
         self.free_table = []
         for i in range(15, self.MAX_DATA_BLOCKS + 15):  # Data blocks start at 15
             self.free_table.append([i, -1, -1])  # [index, valid(-1=free), inode]
-
-    def _get_timestamp(self):
-        return time.strftime("%Y-%m-%d %H:%M:%S")
     
-    def tfs_stat(self, filename: str) -> Optional[dict]:
-        """Get file information"""
-        if not self.is_mounted:
-            return None
-            
-        inode_block = self._find_file_inode(filename)
-        if inode_block == -1:
-            return None
-        
-        buffer = bytearray(constants.BLOCK_SIZE)
-        self.disk.readBlock(inode_block, buffer)
-        inode = INode.unpack(bytes(buffer))
-        
-        return {
-            'name': inode.file_name.rstrip('\x00'),
-            'size': inode.file_size,
-            'created': inode.time_created,
-            'modified': inode.last_modified,
-            'accessed': inode.last_accessed
-        }
-
     def _find_file_inode(self, filename: str) -> int:
         """Helper method for finding file inodes"""
         # Placeholder implementation
@@ -559,7 +533,6 @@ if __name__ == "__main__":
     print("TinyFS module loaded. Run tinyfsTest.py to test functions.")
 
 # Add these methods to your TinyFS class in tinyfs.py
-
 def tfs_readdir(self) -> List[str]:
     """List all files in the filesystem (directory listing)"""
     print("Listing directory contents")

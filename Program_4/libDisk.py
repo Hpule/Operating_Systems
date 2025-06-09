@@ -2,11 +2,8 @@
 # llibDisk.py
 import os
 import errno
-import math
 import constants
-import time
 from typing import Optional
-from argparse import ArgumentParser
 
 class DiskError(Exception):
     """Custom exception for disk operations"""

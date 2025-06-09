@@ -147,7 +147,7 @@ def test_additional_features():
     
     # Test 2: writeByte with position tracking
     print("\nTest 2: writeByte position tracking")
-    fd3 = fs.tfs_open("positions.txt")
+    fd3 = fs.tfs_open("pstss.txt")
     
     # Write bytes at different positions
     for i, char in enumerate("ABCDE"):
